@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="60" height="60">
+  <g fill="#d4998f" opacity="0.6">
+    <!-- 中心花蕊 -->
+    <circle cx="50" cy="50" r="8" fill="#8b5a2b"/>
+    <!-- 花瓣 -->
+    <ellipse cx="50" cy="30" rx="8" ry="15" fill="#ffc0cb"/>
+    <ellipse cx="70" cy="50" rx="15" ry="8" fill="#ffc0cb"/>
+    <ellipse cx="50" cy="70" rx="8" ry="15" fill="#ffc0cb"/>
+    <ellipse cx="30" cy="50" rx="15" ry="8" fill="#ffc0cb"/>
+    <ellipse cx="62" cy="38" rx="10" ry="12" fill="#ffb6c1" transform="rotate(45 62 38)"/>
+    <ellipse cx="62" cy="62" rx="10" ry="12" fill="#ffb6c1" transform="rotate(-45 62 62)"/>
+    <ellipse cx="38" cy="62" rx="10" ry="12" fill="#ffb6c1" transform="rotate(45 38 62)"/>
+    <ellipse cx="38" cy="38" rx="10" ry="12" fill="#ffb6c1" transform="rotate(-45 38 38)"/>
+  </g>
+</svg>

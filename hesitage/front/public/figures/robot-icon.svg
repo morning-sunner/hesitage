@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="28" height="28">
+  <g fill="currentColor">
+    <!-- 头部 -->
+    <rect x="25" y="30" width="50" height="40" rx="8" fill="#8b5a2b"/>
+    <!-- 天线 -->
+    <line x1="50" y1="20" x2="50" y2="30" stroke="#8b5a2b" stroke-width="3"/>
+    <circle cx="50" cy="20" r="4" fill="#8b5a2b"/>
+    <!-- 眼睛 -->
+    <circle cx="38" cy="45" r="5" fill="#fff"/>
+    <circle cx="62" cy="45" r="5" fill="#fff"/>
+    <circle cx="38" cy="45" r="2" fill="#333"/>
+    <circle cx="62" cy="45" r="2" fill="#333"/>
+    <!-- 嘴巴 -->
+    <path d="M 35 58 Q 50 65 65 58" stroke="#fff" stroke-width="2" fill="none"/>
+  </g>
+</svg>
