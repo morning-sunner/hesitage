@@ -1,21 +1,7 @@
 <template>
   <div class="container">
-    <!-- 头部 -->
-    <header>
-      <div class="logo">
-        <div class="logo-icon">长三角<br />非遗</div>
-        <div class="logo-text">长三角非物质文化遗产平台</div>
-      </div>
-      <nav>
-        <router-link to="/">首页</router-link>
-        <router-link to="/map" class="active">地图分布</router-link>
-        <router-link to="/chat">AI助手</router-link>
-      </nav>
-      <div class="user-info">
-        <img src="/figures/user-avatar.svg" alt="用户头像" class="user-avatar" />
-        <span>游客</span>
-      </div>
-    </header>
+    <!-- 导航栏 -->
+    <NavBar />
 
     <!-- 面包屑导航 -->
     <div class="breadcrumb">
@@ -157,6 +143,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useHeritageStore } from '../stores/heritageStore'
+import NavBar from '../components/NavBar.vue'
 
 const route = useRoute()
 const heritageStore = useHeritageStore()

@@ -1,21 +1,9 @@
 <template>
   <div class="container">
-    <!-- 头部 -->
-    <header>
-      <div class="logo">
-        <div class="logo-icon">长三角<br />非遗</div>
-        <div class="logo-text">长三角非物质文化遗产平台</div>
-      </div>
-      <nav>
-        <router-link to="/" class="active">首页</router-link>
-        <router-link to="/map">地图分布</router-link>
-        <router-link to="/chat">AI助手</router-link>
-      </nav>
-      <div class="user-info">
-        <img src="/figures/user-avatar.svg" alt="用户头像" class="user-avatar" />
-        <span>游客</span>
-      </div>
-    </header>
+    <!-- 导航栏 -->
+    <NavBar />
+
+    <div class="content-wrapper">
 
     <!-- 装饰元素 -->
     <div class="decoration-circle circle-1"></div>
@@ -69,10 +57,11 @@
       </div>
     </div>
 
-    <!-- 向下箭头按钮 -->
-    <router-link to="/map" class="scroll-down-btn" title="查看地图分布">
-      <span class="arrow-icon">↓</span>
-    </router-link>
+      <!-- 向下箭头按钮 -->
+      <router-link to="/map" class="scroll-down-btn" title="查看地图分布">
+        <span class="arrow-icon">↓</span>
+      </router-link>
+    </div>
   </div>
 </template>
 
@@ -81,6 +70,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useHeritageStore } from '../stores/heritageStore'
 import { animateNumber } from '../utils/common'
+import NavBar from '../components/NavBar.vue'
 
 const router = useRouter()
 const heritageStore = useHeritageStore()

@@ -1,21 +1,7 @@
 <template>
   <div class="container">
-    <!-- 头部 -->
-    <header>
-      <div class="logo">
-        <div class="logo-icon">长三角<br />非遗</div>
-        <div class="logo-text">长三角非物质文化遗产平台</div>
-      </div>
-      <nav>
-        <router-link to="/">首页</router-link>
-        <router-link to="/map">地图分布</router-link>
-        <router-link to="/chat" class="active">AI助手</router-link>
-      </nav>
-      <div class="user-info">
-        <img src="/figures/user-avatar.svg" alt="用户头像" class="user-avatar" />
-        <span>游客</span>
-      </div>
-    </header>
+    <!-- 导航栏 -->
+    <NavBar />
 
     <!-- 装饰元素 -->
     <div class="decoration-circle circle-1"></div>
@@ -119,6 +105,7 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted } from 'vue'
+import NavBar from '../components/NavBar.vue'
 import { useHeritageStore } from '../stores/heritageStore'
 
 interface Message {
@@ -249,6 +236,7 @@ onMounted(() => {
 
 <style scoped>
 .container {
+  min-width: 1400px;
   min-height: 100vh;
   background: linear-gradient(135deg, #e8d5b7 0%, #d4c5a9 50%, #c8b596 100%);
   position: relative;
