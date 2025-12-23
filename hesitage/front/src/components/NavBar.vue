@@ -29,10 +29,11 @@
       <el-menu-item index="/detail">匠人书影</el-menu-item>
       <el-menu-item index="community">互动社区</el-menu-item>
       <el-menu-item index="/chat">AI对话</el-menu-item>
+      <el-menu-item index="/profile">个人中心</el-menu-item>
     </el-menu>
 
     <!-- 4. 用户头像作为最后一个子元素 -->
-    <div class="navbar-user">
+    <div class="navbar-user" @click="goProfile">
       <img src="/figures/user-avatar.svg" alt="用户头像" class="user-avatar" />
     </div>
   </div>
@@ -47,7 +48,7 @@ const activeMenu = ref('/')
 
 const handleSelect = (key: string) => {
   // 处理导航跳转
-  if (key === '/' || key === '/chat' || key === '/heritage' || key === '/detail') {
+  if (key === '/' || key === '/chat' || key === '/heritage' || key === '/detail' || key === '/profile') {
     router.push(key)
     activeMenu.value = key
   } else {
@@ -55,6 +56,11 @@ const handleSelect = (key: string) => {
     console.log('Selected:', key)
   }
 }
+const goProfile = () => {
+  router.push('/profile')
+  activeMenu.value = '/profile'
+}
+
 </script>
 
 <style scoped>

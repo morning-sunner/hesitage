@@ -236,7 +236,7 @@ onMounted(() => {
 
 <style scoped>
 .container {
-  min-width: 1400px;
+  width: 100%;
   min-height: 100vh;
   background: linear-gradient(135deg, #e8d5b7 0%, #d4c5a9 50%, #c8b596 100%);
   position: relative;
@@ -343,11 +343,12 @@ nav a.active {
 /* 主内容区域 */
 .main-content {
   display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 20px;
-  max-width: 1400px;
+  grid-template-columns: 3fr 1.2fr; /* 左侧更宽，右侧更窄 */
+  gap: 18px;
+
+  width: min(1680px, 96vw); /* ✅ 更接近铺满 */
   margin: 0 auto;
-  padding: 0 30px;
+  padding: 0 12px;          /* ✅ 减小左右空白 */
 }
 
 /* 聊天区域 */
@@ -359,7 +360,8 @@ nav a.active {
   backdrop-filter: blur(10px);
   display: flex;
   flex-direction: column;
-  height: 700px;
+  height: calc(100vh - 170px); /* ✅ 更像“占满一屏”的布局 */
+  min-height: 640px;
 }
 
 .chat-header {
@@ -617,10 +619,11 @@ nav a.active {
 }
 
 .stats-card {
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 15px;
-  padding: 20px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.82);
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.45);
 }
 
 .stats-card h3 {
@@ -719,20 +722,19 @@ nav a.active {
   border-color: #8b5a2b;
 }
 
-/* 响应式设计 */
 @media (max-width: 1024px) {
   .main-content {
     grid-template-columns: 1fr;
+    width: min(980px, 96vw);
+    padding: 0 12px;
   }
 
   .chat-section {
-    height: 600px;
-  }
-
-  .stats-sidebar {
-    grid-column: 1;
+    height: 620px;
+    min-height: 520px;
   }
 }
+
 
 @media (max-width: 768px) {
   .main-content {
