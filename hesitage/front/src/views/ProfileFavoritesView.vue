@@ -23,9 +23,7 @@
 
     <!-- 导航栏：统一样式 + 左侧返回首页 -->
     <div class="nav">
-      <button class="nav-home" type="button" @click="goHome" aria-label="返回首页">
-        ← 首页
-      </button>
+      <button class="nav-home" type="button" @click="goHome" aria-label="返回首页">← 首页</button>
 
       <div class="nav-links">
         <router-link to="/profile" class="nav-item" :class="{ active: activeTab === '/profile' }">
@@ -48,7 +46,15 @@
 
     <!-- 白底主体 -->
     <div class="page-shell">
-      <div class="collection-container">
+      <!-- ✅ 收藏未公开：直接占位 -->
+      <div v-if="!canShowFavorites" class="privacy-locked">
+        <div class="lock-title">收藏已设为不公开</div>
+        <div class="lock-desc">你可以在「设置 → 隐私设置」中开启“公开我的收藏”。</div>
+        <button class="lock-btn" type="button" @click="goSettings">去设置</button>
+      </div>
+
+      <!-- ✅ 收藏公开：正常展示 -->
+      <div v-else class="collection-container">
         <!-- 左箭头 -->
         <button
           class="arrow-btn left-arrow"
@@ -64,8 +70,14 @@
         <div ref="listRef" class="collection-list" @scroll.passive="onListScroll">
           <div v-for="item in items" :key="item.id" class="collection-item">
             <div class="collection-map">
-              <div class="map-real" :ref="(el) => setMapEl(item.id, el as HTMLDivElement | null)"></div>
-              <div v-if="mapError[item.id]" class="map-fallback">地图加载失败（网络或 Key 问题）</div>
+              <!-- ✅ 位置未公开：不加载地图，直接占位 -->
+              <div v-if="!canShowLocation" class="map-fallback">位置信息已隐藏</div>
+
+              <!-- ✅ 位置公开：正常地图 -->
+              <template v-else>
+                <div class="map-real" :ref="(el) => setMapEl(item.id, el as HTMLDivElement | null)"></div>
+                <div v-if="mapError[item.id]" class="map-fallback">地图加载失败（网络或 Key 问题）</div>
+              </template>
             </div>
 
             <div class="collection-title">{{ item.title }}</div>
@@ -103,6 +115,35 @@ declare global {
   }
 }
 
+type ProfileVisibility = 'public' | 'private'
+type PrivacyState = {
+  visibility: ProfileVisibility
+  showInfo: boolean
+  showFavorites: boolean
+  showLocation: boolean
+}
+
+function readPrivacy(): PrivacyState {
+  const visibility = ((localStorage.getItem('privacy_profile_visibility') as ProfileVisibility) || 'public')
+  const isPrivate = visibility === 'private'
+
+  const showInfo = !isPrivate && (localStorage.getItem('privacy_show_info') ?? '1') === '1'
+  const showFavorites = !isPrivate && (localStorage.getItem('privacy_show_favorites') ?? '1') === '1'
+  const showLocation = !isPrivate && (localStorage.getItem('privacy_show_location') ?? '1') === '1'
+
+  return { visibility, showInfo, showFavorites, showLocation }
+}
+
+const privacy = ref<PrivacyState>(readPrivacy())
+function syncPrivacy(_e?: Event) {
+  privacy.value = readPrivacy()
+}
+
+function onStorage(e: StorageEvent) {
+  if (!e.key) return
+  if (e.key.startsWith('privacy_')) syncPrivacy()
+}
+
 type CollectionItem = {
   id: string
   title: string
@@ -114,6 +155,9 @@ type CollectionItem = {
 const route = useRoute()
 const router = useRouter()
 const activeTab = computed(() => route.path)
+
+const canShowFavorites = computed(() => privacy.value.visibility === 'public' && privacy.value.showFavorites)
+const canShowLocation = computed(() => privacy.value.visibility === 'public' && privacy.value.showLocation)
 
 /** ✅ 仅本页解除 #app 的 max-width/padding 限制（关键） */
 const APP_CLASS = 'app-full-bleed'
@@ -197,7 +241,7 @@ const items = ref<CollectionItem[]>([
   },
 ])
 
-/** ====== 横向翻页：一屏显示多少张（3/2/1），且数量少也铺满 ====== */
+/** ====== 横向翻页 ====== */
 const listRef = ref<HTMLDivElement | null>(null)
 const cols = ref(3)
 const canScrollLeft = ref(false)
@@ -220,7 +264,7 @@ function applyCols() {
     listRef.value.style.setProperty('--gap', '22px')
   }
 
-  refreshMaps()
+  if (canShowLocation.value) refreshMaps()
   updateArrowState()
 }
 
@@ -235,7 +279,7 @@ function updateArrowState() {
 
 function onListScroll() {
   updateArrowState()
-  refreshMaps()
+  if (canShowLocation.value) refreshMaps()
 }
 
 function getScrollStepPx() {
@@ -258,11 +302,11 @@ function scrollByPage(dir: 1 | -1) {
   el.scrollBy({ left: dir * step, behavior: 'smooth' })
   setTimeout(() => {
     updateArrowState()
-    refreshMaps()
+    if (canShowLocation.value) refreshMaps()
   }, 220)
 }
 
-/** ====== 高德地图：脚本只加载一次 + 多地图实例 ====== */
+/** ====== 高德地图 ====== */
 const AMAP_KEY = (import.meta as any).env?.VITE_AMAP_KEY as string | undefined
 
 const mapError = reactive<Record<string, boolean>>({})
@@ -307,6 +351,15 @@ function loadAmapScript(key: string) {
   })
 }
 
+function destroyAllMaps() {
+  mapInstances.forEach((m) => {
+    try {
+      m?.destroy?.()
+    } catch {}
+  })
+  mapInstances.clear()
+}
+
 function destroyMap(id: string) {
   try {
     mapInstances.get(id)?.destroy?.()
@@ -325,6 +378,9 @@ function refreshMaps() {
 }
 
 async function initAllMaps() {
+  // ✅ 不公开位置信息：绝不初始化地图
+  if (!canShowLocation.value) return
+
   if (!AMAP_KEY) {
     items.value.forEach((it) => (mapError[it.id] = true))
     return
@@ -383,6 +439,9 @@ async function initAllMaps() {
 function goHome() {
   router.push('/')
 }
+function goSettings() {
+  router.push('/profile/settings')
+}
 
 const removeItem = async (id: string) => {
   if (!confirm('确定要取消收藏吗？')) return
@@ -390,8 +449,10 @@ const removeItem = async (id: string) => {
   delete mapError[id]
   items.value = items.value.filter((x) => x.id !== id)
   await nextTick()
-  applyCols()
-  updateArrowState()
+  if (canShowFavorites.value) {
+    applyCols()
+    updateArrowState()
+  }
 }
 
 const goDetail = (item: CollectionItem) => {
@@ -399,8 +460,29 @@ const goDetail = (item: CollectionItem) => {
 }
 
 function onWinResize() {
-  applyCols()
+  if (canShowFavorites.value) applyCols()
 }
+
+/** ✅ 隐私变化：即时刷新页面展示 + 地图启停 */
+watch([canShowFavorites, canShowLocation], async ([favOk, locOk]) => {
+  // 收藏不公开：直接销毁地图
+  if (!favOk) {
+    destroyAllMaps()
+    return
+  }
+
+  // 收藏公开但位置不公开：销毁地图
+  if (!locOk) {
+    destroyAllMaps()
+    return
+  }
+
+  // 收藏公开 + 位置公开：初始化地图
+  await nextTick()
+  await initAllMaps()
+  applyCols()
+  updateArrowState()
+})
 
 onMounted(async () => {
   enableFullBleed()
@@ -408,11 +490,21 @@ onMounted(async () => {
   userEmail.value = localStorage.getItem(LS_EMAIL_KEY) || ''
   avatarUrl.value = localStorage.getItem(LS_AVATAR_KEY) || ''
 
-  await initAllMaps()
+  // ✅ 初始化同步隐私状态 & 监听变化
+  syncPrivacy()
+  window.addEventListener('storage', onStorage)
+  window.addEventListener('privacy-updated', syncPrivacy as EventListener)
 
   await nextTick()
-  applyCols()
-  updateArrowState()
+
+  if (canShowFavorites.value) {
+    applyCols()
+    updateArrowState()
+
+    if (canShowLocation.value) {
+      await initAllMaps()
+    }
+  }
 
   window.addEventListener('resize', onWinResize)
 })
@@ -420,13 +512,10 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   disableFullBleed()
   window.removeEventListener('resize', onWinResize)
+  window.removeEventListener('storage', onStorage)
+  window.removeEventListener('privacy-updated', syncPrivacy as EventListener)
 
-  mapInstances.forEach((m) => {
-    try {
-      m?.destroy?.()
-    } catch {}
-  })
-  mapInstances.clear()
+  destroyAllMaps()
 })
 </script>
 
@@ -666,13 +755,52 @@ onBeforeUnmount(() => {
   padding: 20px 18px 24px;
 }
 
+/* ✅ 隐私占位 */
+.privacy-locked {
+  width: min(880px, 92vw);
+  margin: 18px auto;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(240, 230, 214, 0.95);
+  border-radius: 16px;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.06);
+  padding: 28px 24px;
+  text-align: center;
+}
+.lock-title {
+  font-size: 18px;
+  font-weight: 850;
+  color: #8b4513;
+  margin-bottom: 10px;
+}
+.lock-desc {
+  font-size: 14px;
+  color: rgba(0,0,0,0.6);
+  line-height: 1.7;
+  margin-bottom: 16px;
+}
+.lock-btn {
+  border: none;
+  cursor: pointer;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: rgba(139, 69, 19, 0.88);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 750;
+  box-shadow: 0 12px 20px rgba(139, 69, 19, 0.16);
+}
+.lock-btn:hover {
+  background: rgba(109, 56, 17, 0.95);
+  transform: translateY(-2px);
+}
+
 /* 容器 + 箭头 */
 .collection-container {
   position: relative;
-  padding: 6px 52px; /* 给左右箭头留空间 */
+  padding: 6px 52px;
 }
 
-/* 横向列表（核心） */
+/* 横向列表 */
 .collection-list {
   --cols: 3;
   --gap: 22px;
