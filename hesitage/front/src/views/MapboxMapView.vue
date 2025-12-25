@@ -5,7 +5,7 @@
 
     <!-- 地图容器 -->
     <div class="map-wrapper">
-      <div ref="mapContainer" id="map" class="mapbox-map"></div>
+      <div ref="mapContainer" id="map" class="tianditu-map"></div>
 
       <!-- 顶部工具栏 -->
       <div class="toolbar">
@@ -39,11 +39,9 @@
         <div class="toolbar-group">
           <h3>底图切换</h3>
           <select v-model="currentStyle" @change="changeMapStyle" class="style-select">
-            <option value="streets">街道图</option>
-            <option value="satellite">卫星图</option>
-            <option value="terrain">地形图</option>
-            <option value="light">浅色图</option>
-            <option value="dark">深色图</option>
+            <option value="vec">矢量图 (中文)</option>
+            <option value="img">卫星图</option>
+            <option value="ter">地形图</option>
           </select>
         </div>
       </div>
@@ -128,12 +126,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, onUnmounted } from 'vue'
-import mapboxgl, { MapMouseEvent } from 'mapbox-gl'
+import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import NavBar from '../components/NavBar.vue'
-
-// Mapbox token
-mapboxgl.accessToken = 'pk.eyJ1IjoiY2hlbnlhbmd6aHUiLCJhIjoiY21qZ3gyd3NlMTd1YjNjb3JqNDNyb3Y5eSJ9.eVPOmxIjsx1Zm2DRZSAUqw'
 
 // 定义非遗项目的数据结构类型
 interface HeritageItem {
@@ -146,7 +141,7 @@ interface HeritageItem {
 }
 
 // 地图实例
-let mapInstance: mapboxgl.Map | null = null
+let mapboxMapInstance: mapboxgl.Map | null = null
 const mapContainer = ref<HTMLElement | null>(null)
 
 // 数据
@@ -170,7 +165,7 @@ const heritageItems = ref<HeritageItem[]>([
 ])
 
 // UI 状态
-const currentStyle = ref('streets')
+const currentStyle = ref('vec')
 const selectedProvince = ref('all')
 const queryMode = ref<'point' | 'circle' | null>(null)
 const showResultPanel = ref(false)
@@ -179,24 +174,24 @@ const queryResults = ref<HeritageItem[]>([])
 
 // 地图信息
 const mapInfo = ref({
-  lng: 120,
-  lat: 31,
+  lng: 120.5,
+  lat: 31.5,
   zoom: 7,
 })
 
 // 统计数据
 const statistics = computed(() => {
-  const filtered = selectedProvince.value === 'all' 
-    ? heritageItems.value 
-    : heritageItems.value // 实际应该按省份过滤
-  
+  const filtered = selectedProvince.value === 'all'
+    ? heritageItems.value
+    : heritageItems.value
+
   const byCategory = [
     { category: '传统戏剧', count: filtered.filter(i => i.category === '传统戏剧').length },
     { category: '工艺美术', count: filtered.filter(i => i.category === '工艺美术').length },
     { category: '传统技艺', count: filtered.filter(i => i.category === '传统技艺').length },
     { category: '传统建筑', count: filtered.filter(i => i.category === '传统建筑').length },
   ]
-  
+
   return {
     total: filtered.length,
     byCategory: byCategory.filter(c => c.count > 0),
@@ -207,237 +202,245 @@ const statistics = computed(() => {
 onMounted(() => {
   if (!mapContainer.value) return
 
-  mapInstance = new mapboxgl.Map({
+  // Mapbox GL JS 需要 token（即使不用 Mapbox 服务）
+  mapboxgl.accessToken = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw'
+
+  // 替换成你自己的天地图 Key
+  const tiandituKey = 'be91f36f4ea2161b0721a5b4f7628a3d'
+
+  // 天地图 WMTS 服务（球面墨卡托投影 _w）
+  const tiandituSources: Record<string, any> = {
+    'tianditu-vec': {
+      type: 'raster',
+      tiles: [
+        `https://t0.tianditu.gov.cn/vec_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=vec&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${tiandituKey}`,
+        `https://t1.tianditu.gov.cn/vec_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=vec&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${tiandituKey}`,
+      ],
+      tileSize: 256,
+    },
+    'tianditu-cva': {
+      type: 'raster',
+      tiles: [
+        `https://t0.tianditu.gov.cn/cva_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cva&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${tiandituKey}`,
+        `https://t1.tianditu.gov.cn/cva_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cva&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${tiandituKey}`,
+      ],
+      tileSize: 256,
+    },
+  }
+
+  // 只初始化矢量图的两个图层
+  const tiandituLayers: any[] = [
+    { id: 'tianditu-vec-layer', type: 'raster', source: 'tianditu-vec', layout: { visibility: 'visible' } },
+    { id: 'tianditu-cva-layer', type: 'raster', source: 'tianditu-cva', layout: { visibility: 'visible' } },
+  ]
+
+  mapboxMapInstance = new mapboxgl.Map({
     container: mapContainer.value,
-    style: 'mapbox://styles/mapbox/streets-v12',
+    style: {
+      version: 8,
+      sources: tiandituSources,
+      layers: tiandituLayers,
+    },
     center: [120.5, 31.5],
     zoom: 7,
   })
 
-  if (!mapInstance) return
+  mapboxMapInstance.on('load', () => {
+    if (!mapboxMapInstance) return;
+    
+    // 添加非遗项目 GeoJSON 源和图层
+    mapboxMapInstance.addSource('heritage-points', {
+      type: 'geojson',
+      data: {
+        type: 'FeatureCollection',
+        features: heritageItems.value.map(item => ({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [item.lng, item.lat] },
+          properties: { ...item },
+        })),
+      },
+    });
 
-  // 地图加载完成
-  mapInstance.on('load', () => {
-    if (!mapInstance) return
+    mapboxMapInstance.addLayer({
+      id: 'heritage-layer',
+      type: 'circle',
+      source: 'heritage-points',
+      paint: {
+        'circle-radius': 8,
+        'circle-color': '#d4a574',
+        'circle-stroke-width': 2,
+        'circle-stroke-color': '#fff',
+      },
+    });
 
-    // 添加非遗项目源
-    if (!mapInstance.getSource('heritage-sites')) {
-      mapInstance.addSource('heritage-sites', {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: heritageItems.value.map(item => ({
-            type: 'Feature',
-            geometry: {
-              type: 'Point',
-              coordinates: [item.lng, item.lat],
-            },
-            properties: {
-              id: item.id,
-              name: item.name,
-              category: item.category,
-              location: item.location,
-            },
-          })),
-        },
-      } as any)
+    // 统一绑定所有地图事件
+    setupMapEvents();
+  });
+});
+
+const setupMapEvents = () => {
+  if (!mapboxMapInstance) return
+
+  // 点击事件
+  mapboxMapInstance.on('click', 'heritage-layer', (e) => {
+    const features = (e as any).features
+    if (queryMode.value === 'point' && features && features.length > 0) {
+      const props = features[0].properties
+      if (props && props.id !== undefined) {
+        const item = heritageItems.value.find(i => i.id === props.id)
+        if (item) {
+          queryResults.value = [item]
+          showResultPanel.value = true
+        }
+      }
     }
-
-    // 添加标记层
-    if (!mapInstance.getLayer('heritage-points')) {
-      mapInstance.addLayer({
-        id: 'heritage-points',
-        type: 'circle',
-        source: 'heritage-sites',
-        paint: {
-          'circle-radius': 8,
-          'circle-color': '#d4a574',
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#fff',
-        },
-      })
-    }
-
-    // 添加标签层
-    if (!mapInstance.getLayer('heritage-labels')) {
-      mapInstance.addLayer({
-        id: 'heritage-labels',
-        type: 'symbol',
-        source: 'heritage-sites',
-        layout: {
-          'text-field': ['get', 'name'],
-          'text-size': 12,
-          'text-offset': [0, 1.5],
-          'text-anchor': 'top',
-        },
-        paint: {
-          'text-color': '#5a4f45',
-          'text-halo-color': '#fff',
-          'text-halo-width': 1,
-        },
-      })
-    }
-
-    // 点击事件
-    mapInstance.on('click', 'heritage-points', (e: MapMouseEvent) => {
-      if (queryMode.value !== 'point' || !e.features || e.features.length === 0) {
-        return
-      }
-      const feature = e.features[0]
-      if (feature && feature.properties) {
-        queryResults.value = heritageItems.value.filter(
-          item => item.id === (feature.properties as any).id
-        )
-        showResultPanel.value = true
-      }
-    })
-
-    // 鼠标悬停效果
-    mapInstance.on('mouseenter', 'heritage-points', () => {
-      if (mapInstance) {
-        mapInstance.getCanvas().style.cursor = 'pointer'
-      }
-    })
-    mapInstance.on('mouseleave', 'heritage-points', () => {
-      if (mapInstance) {
-        mapInstance.getCanvas().style.cursor = ''
-      }
-    })
   })
 
-  // 地图移动时更新坐标信息
-  mapInstance.on('move', () => {
-    if (!mapInstance) return
-    const center = mapInstance.getCenter()
+  // 鼠标样式
+  mapboxMapInstance.on('mouseenter', 'heritage-layer', () => {
+    if (mapboxMapInstance) mapboxMapInstance.getCanvas().style.cursor = 'pointer'
+  })
+  mapboxMapInstance.on('mouseleave', 'heritage-layer', () => {
+    if (mapboxMapInstance) mapboxMapInstance.getCanvas().style.cursor = ''
+  })
+
+  // 地图移动事件
+  mapboxMapInstance.on('move', () => {
+    if (!mapboxMapInstance) return
+    const center = mapboxMapInstance.getCenter()
     mapInfo.value.lng = center.lng
     mapInfo.value.lat = center.lat
-    mapInfo.value.zoom = mapInstance.getZoom()
+    mapInfo.value.zoom = mapboxMapInstance.getZoom()
+  })
+}
+
+onUnmounted(() => {
+  if (mapboxMapInstance) {
+    mapboxMapInstance.remove();
+    mapboxMapInstance = null;
+  }
+});
+
+const changeMapStyle = () => {
+  if (!mapboxMapInstance) return
+
+  const tiandituKey = 'be91f36f4ea2161b0721a5b4f7628a3d'
+
+  // 天地图 WMTS 服务（球面墨卡托投影 _w）
+  const sourceConfigs: Record<string, any> = {
+    'tianditu-img': {
+      type: 'raster',
+      tiles: [
+        `https://t0.tianditu.gov.cn/img_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${tiandituKey}`,
+        `https://t1.tianditu.gov.cn/img_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${tiandituKey}`,
+      ],
+      tileSize: 256,
+    },
+    'tianditu-cia': {
+      type: 'raster',
+      tiles: [
+        `https://t0.tianditu.gov.cn/cia_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cia&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${tiandituKey}`,
+        `https://t1.tianditu.gov.cn/cia_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cia&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${tiandituKey}`,
+      ],
+      tileSize: 256,
+    },
+    'tianditu-ter': {
+      type: 'raster',
+      tiles: [
+        `https://t0.tianditu.gov.cn/ter_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ter&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${tiandituKey}`,
+        `https://t1.tianditu.gov.cn/ter_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ter&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${tiandituKey}`,
+      ],
+      tileSize: 256,
+    },
+    'tianditu-cta': {
+      type: 'raster',
+      tiles: [
+        `https://t0.tianditu.gov.cn/cta_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cta&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${tiandituKey}`,
+        `https://t1.tianditu.gov.cn/cta_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cta&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${tiandituKey}`,
+      ],
+      tileSize: 256,
+    },
+  }
+
+  // 图层配置
+  const layerVisibilityConfig: Record<string, string[]> = {
+    vec: ['tianditu-vec-layer', 'tianditu-cva-layer'],
+    img: ['tianditu-img-layer', 'tianditu-cia-layer'],
+    ter: ['tianditu-ter-layer', 'tianditu-cta-layer'],
+  }
+
+  // 隐藏所有图层
+  ;['tianditu-vec-layer', 'tianditu-cva-layer', 'tianditu-img-layer', 'tianditu-cia-layer', 'tianditu-ter-layer', 'tianditu-cta-layer'].forEach(layerId => {
+    if (mapboxMapInstance?.getLayer(layerId)) {
+      mapboxMapInstance.setLayoutProperty(layerId, 'visibility', 'none')
+    }
   })
 
-  mapInstance.scrollZoom.enable()
-})
+  // 获取需要显示的图层
+  const layersToShow = layerVisibilityConfig[currentStyle.value]
+  if (!layersToShow) return
 
-// 组件卸载时销毁地图实例，防止内存泄漏
-onUnmounted(() => {
-  if (mapInstance) {
-    mapInstance.remove()
-    mapInstance = null
-  }
-})
+  // 获取需要添加的源和图层
+  const sourceIds = currentStyle.value === 'vec' 
+    ? ['tianditu-vec', 'tianditu-cva']
+    : currentStyle.value === 'img'
+    ? ['tianditu-img', 'tianditu-cia']
+    : ['tianditu-ter', 'tianditu-cta']
 
-// 方法
-const changeMapStyle = () => {
-  const styleMap: Record<string, string> = {
-    streets: 'mapbox://styles/mapbox/streets-v12',
-    satellite: 'mapbox://styles/mapbox/satellite-v9',
-    terrain: 'mapbox://styles/mapbox/outdoors-v12',
-    light: 'mapbox://styles/mapbox/light-v11',
-    dark: 'mapbox://styles/mapbox/dark-v11',
-  }
-  if (mapInstance) {
-    const styleUrl = styleMap[currentStyle.value]
-    if (styleUrl) {
-      mapInstance.setStyle(styleUrl)
-      // 监听样式加载完成事件，重新添加数据源和图层
-      mapInstance.once('style.load', () => {
-        if (!mapInstance) return
-        if (!mapInstance.getSource('heritage-sites')) {
-          mapInstance.addSource('heritage-sites', {
-            type: 'geojson',
-            data: {
-              type: 'FeatureCollection',
-              features: heritageItems.value.map(item => ({
-                type: 'Feature',
-                geometry: {
-                  type: 'Point',
-                  coordinates: [item.lng, item.lat],
-                },
-                properties: {
-                  id: item.id,
-                  name: item.name,
-                  category: item.category,
-                  location: item.location,
-                },
-              })),
-            },
-          } as any)
-        }
-        if (!mapInstance.getLayer('heritage-points')) {
-          mapInstance.addLayer({
-            id: 'heritage-points',
-            type: 'circle',
-            source: 'heritage-sites',
-            paint: {
-              'circle-radius': 8,
-              'circle-color': '#d4a574',
-              'circle-stroke-width': 2,
-              'circle-stroke-color': '#fff',
-            },
-          })
-        }
-        if (!mapInstance.getLayer('heritage-labels')) {
-          mapInstance.addLayer({
-            id: 'heritage-labels',
-            type: 'symbol',
-            source: 'heritage-sites',
-            layout: {
-              'text-field': ['get', 'name'],
-              'text-size': 12,
-              'text-offset': [0, 1.5],
-              'text-anchor': 'top',
-            },
-            paint: {
-              'text-color': '#5a4f45',
-              'text-halo-color': '#fff',
-              'text-halo-width': 1,
-            },
-          })
-        }
-      })
+  const layerIds = layersToShow
+
+  // 动态添加缺失的源
+  sourceIds.forEach(sourceId => {
+    if (!mapboxMapInstance?.getSource(sourceId)) {
+      mapboxMapInstance?.addSource(sourceId, sourceConfigs[sourceId])
     }
+  })
+
+  // 动态添加缺失的图层
+  const layerMapping: Record<string, string> = {
+    'tianditu-img-layer': 'tianditu-img',
+    'tianditu-cia-layer': 'tianditu-cia',
+    'tianditu-ter-layer': 'tianditu-ter',
+    'tianditu-cta-layer': 'tianditu-cta',
   }
-}
 
-const toggleProvinceLayer = () => {
-  console.log('切换省份图层')
+  layerIds.forEach(layerId => {
+    if (!mapboxMapInstance?.getLayer(layerId)) {
+      const sourceId = layerMapping[layerId] || layerId.replace('-layer', '')
+      mapboxMapInstance?.addLayer({
+        id: layerId,
+        type: 'raster',
+        source: sourceId,
+        layout: { visibility: 'visible' },
+      })
+    } else {
+      // 图层已存在，只需显示
+      mapboxMapInstance?.setLayoutProperty(layerId, 'visibility', 'visible')
+    }
+  })
 }
-
 const toggleHeritageLayers = () => {
-  if (mapInstance && mapInstance.getLayer('heritage-points')) {
-    const visibility = mapInstance.getLayoutProperty('heritage-points', 'visibility')
-    mapInstance.setLayoutProperty('heritage-points', 'visibility', visibility === 'visible' ? 'none' : 'visible')
-    mapInstance.setLayoutProperty('heritage-labels', 'visibility', visibility === 'visible' ? 'none' : 'visible')
-  }
-}
-
-const startPointQuery = () => {
-  queryMode.value = queryMode.value === 'point' ? null : 'point'
-}
-
-const startCircleQuery = () => {
-  queryMode.value = queryMode.value === 'circle' ? null : 'circle'
-}
-
-const showStatistics = () => {
-  showStatisticsPanel.value = !showStatisticsPanel.value
-}
-
-const filterByProvince = (provinceId: string) => {
-  selectedProvince.value = provinceId
-}
+  if (!mapboxMapInstance || !mapboxMapInstance.getLayer('heritage-layer')) return;
+  const visibility = mapboxMapInstance.getLayoutProperty('heritage-layer', 'visibility');
+  mapboxMapInstance.setLayoutProperty('heritage-layer', 'visibility', visibility === 'visible' ? 'none' : 'visible');
+};
 
 const highlightFeature = (item: HeritageItem) => {
-  if (mapInstance) {
-    mapInstance.flyTo({
-      center: [item.lng, item.lat],
-      zoom: 12,
-    })
+  if (mapboxMapInstance) {
+    mapboxMapInstance.flyTo({ center: [item.lng, item.lat], zoom: 12 });
   }
-}
-</script>
+};
 
+// --- 以下是未改变的函数 ---
+const toggleProvinceLayer = () => { console.log('切换省份图层'); };
+const startPointQuery = () => { queryMode.value = queryMode.value === 'point' ? null : 'point'; };
+const startCircleQuery = () => { queryMode.value = queryMode.value === 'circle' ? null : 'circle'; };
+const showStatistics = () => { showStatisticsPanel.value = !showStatisticsPanel.value; };
+const filterByProvince = (provinceId: string) => { selectedProvince.value = provinceId; };
+</script>
 <style scoped>
 .map-view-container {
+  min-width: 1400px;
   width: 100%;
   height: 100vh;
   display: flex;
@@ -449,7 +452,7 @@ const highlightFeature = (item: HeritageItem) => {
   position: relative;
 }
 
-.mapbox-map {
+.tianditu-map {
   width: 100%;
   height: 100%;
 }
@@ -726,5 +729,21 @@ const highlightFeature = (item: HeritageItem) => {
   .map-info {
     max-width: 90%;
   }
+}
+
+:deep(.marker-popup) {
+  min-width: 120px;
+}
+
+:deep(.marker-popup h4) {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #4a3f35;
+}
+
+:deep(.marker-popup p) {
+  margin: 4px 0;
+  font-size: 12px;
+  color: #666;
 }
 </style>
