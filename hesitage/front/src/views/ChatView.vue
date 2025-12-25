@@ -3,759 +3,737 @@
     <!-- 导航栏 -->
     <NavBar />
 
-    <!-- 装饰元素 -->
-    <div class="decoration-circle circle-1"></div>
-    <div class="decoration-circle circle-2"></div>
-
-    <!-- 主内容区域 -->
-    <div class="main-content">
-      <!-- 聊天区域 -->
-      <div class="chat-section">
-        <div class="chat-header">
-          <div class="chat-title">
-            <span>🤖</span>
-            <span>非遗助手</span>
-          </div>
-          <button class="new-chat-btn" @click="newChat">+ 新对话</button>
-        </div>
-
-        <div class="messages-container" ref="messagesContainer">
-          <div v-if="messages.length === 0" class="no-messages">
-            <p>👋 欢迎使用长三角非遗助手</p>
-            <p>我可以为您介绍长三角地区的非遗项目</p>
-          </div>
-          <div v-for="(message, index) in messages" :key="index" :class="['message', message.role]">
-            <img :src="message.avatar" :alt="`${message.role}头像`" class="message-avatar" />
-            <div>
-              <div class="message-content">{{ message.content }}</div>
-              <div class="message-time">{{ formatTime(message.time) }}</div>
-            </div>
-          </div>
-          <div v-if="isTyping" class="typing-indicator show">
-            <div class="typing-dots">
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 推荐问题 -->
-        <div v-if="messages.length === 0" class="recommended-questions">
-          <p>推荐问题：</p>
-          <button v-for="question in recommendedQuestions" :key="question" class="question-btn" @click="sendMessage(question)">
-            {{ question }}
-          </button>
-        </div>
-
-        <!-- 输入区域 -->
-        <div class="input-area">
-          <input
-            v-model="inputMessage"
-            type="text"
-            class="message-input"
-            placeholder="输入问题..."
-            @keyup.enter="sendMessage(inputMessage)"
-          />
-          <button class="send-btn" @click="sendMessage(inputMessage)">发送</button>
+    <!-- 顶部大背景区域 -->
+    <div class="hero-section">
+      <div class="hero-bg">
+        <img src="https://via.placeholder.com/1400x300?text=大美非遗" alt="hero" class="hero-image" />
+        <div class="hero-title">
+          <h1>大美非遗</h1>
+          <p>长三角非物质文化遗产展示平台</p>
         </div>
       </div>
+    </div>
 
-      <!-- 统计信息侧边栏 -->
-      <div class="stats-sidebar">
-        <!-- 非遗概览 -->
-        <div class="stats-card">
-          <h3>长三角非遗概览</h3>
-          <div class="stat-item">
-            <span class="stat-label">总项目数</span>
-            <span class="stat-value">{{ totalProjects }}</span>
+    <!-- 中部三大板块轮播 -->
+    <div class="middle-carousel-section">
+      <div class="carousel-container" ref="carouselContainer">
+        <!-- 轮播箭头按钮 -->
+        <button class="carousel-btn left-btn" @click="prevPanel">❮</button>
+        <button class="carousel-btn right-btn" @click="nextPanel">❯</button>
+        
+        <!-- 轮播轨道 -->
+        <div class="carousel-track" :style="{ transform: `translateX(-${currentIndex * 100}%)` }">
+          <!-- 面板1：非遗传承人 -->
+          <div class="carousel-panel">
+            <div class="panel-content">
+              <h3 class="panel-title">非遗传承人</h3>
+              <div class="items-grid">
+                <div
+                  v-for="person in inheritors"
+                  :key="person.id"
+                  class="panel-item"
+                >
+                  <div class="item-content">
+                    <div class="item-icon">👨‍🎨</div>
+                    <h4>{{ person.name }}</h4>
+                    <p>{{ person.heritage }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="stat-item">
-            <span class="stat-label">世界遗产</span>
-            <span class="stat-value">{{ totalWorldHeritage }}</span>
+          
+          <!-- 面板2：相关书籍 -->
+          <div class="carousel-panel">
+            <div class="panel-content">
+              <h3 class="panel-title">相关书籍</h3>
+              <div class="items-grid">
+                <div
+                  v-for="book in books"
+                  :key="book.id"
+                  class="panel-item"
+                >
+                  <div class="item-content">
+                    <div class="item-icon">📚</div>
+                    <h4>{{ book.title }}</h4>
+                    <p>点击查看详情</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="stat-item">
-            <span class="stat-label">城市数量</span>
-            <span class="stat-value">{{ totalCities }}</span>
-          </div>
-        </div>
-
-        <!-- 省份排行 -->
-        <div class="stats-card">
-          <h3>省份项目排行</h3>
-          <div class="ranking-list">
-            <div v-for="(province, index) in provincesRanking" :key="province.id" class="ranking-item">
-              <span class="rank-num">{{ index + 1 }}</span>
-              <span class="rank-name">{{ province.name }}</span>
-              <span class="rank-value">{{ province.projectCount }}</span>
+          
+          <!-- 面板3：相关影视 -->
+          <div class="carousel-panel">
+            <div class="panel-content">
+              <h3 class="panel-title">相关影视</h3>
+              <div class="items-grid">
+                <div
+                  v-for="video in videos"
+                  :key="video.id"
+                  class="panel-item"
+                >
+                  <div class="item-content">
+                    <div class="item-icon">🎬</div>
+                    <h4>{{ video.title }}</h4>
+                    <p>{{ video.director }}</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-
-        <!-- 快速链接 -->
-        <div class="stats-card">
-          <h3>快速导航</h3>
-          <router-link to="/" class="link-btn">↖ 返回首页</router-link>
-          <router-link to="/map" class="link-btn">📍 地图分布</router-link>
+        
+        <!-- 轮播指示器 -->
+        <div class="carousel-indicators">
+          <button
+            v-for="(panel, index) in 3"
+            :key="index"
+            class="indicator"
+            :class="{ active: currentIndex === index }"
+            @click="goToPanel(index)"
+          ></button>
         </div>
+      </div>
+    </div>
+
+    <!-- 下部三列展示 -->
+    <div class="bottom-section">
+      <!-- 热播影视 -->
+      <div class="content-column">
+        <h3 class="column-title">热播影视</h3>
+        <ul class="content-list">
+          <li v-for="item in hotVideos" :key="item.id" class="list-item">
+            <span class="list-icon">▶️</span>
+            {{ item.title }}
+          </li>
+        </ul>
+      </div>
+
+      <!-- 热读书籍 -->
+      <div class="content-column">
+        <h3 class="column-title">热读书籍</h3>
+        <ul class="content-list">
+          <li v-for="item in hotBooks" :key="item.id" class="list-item">
+            <span class="list-icon">📖</span>
+            {{ item.title }}
+          </li>
+        </ul>
+      </div>
+
+      <!-- 热门人物 -->
+      <div class="content-column">
+        <h3 class="column-title">热门人物</h3>
+        <ul class="content-list">
+          <li v-for="item in hotPeople" :key="item.id" class="list-item">
+            <span class="list-icon">👤</span>
+            {{ item.name }}
+          </li>
+        </ul>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import NavBar from '../components/NavBar.vue'
-import { useHeritageStore } from '../stores/heritageStore'
 
-interface Message {
-  role: 'user' | 'ai'
-  content: string
-  avatar: string
-  time: Date
+// 当前轮播索引
+const currentIndex = ref(0)
+
+// 轮播控制
+const nextPanel = () => {
+  currentIndex.value = (currentIndex.value + 1) % 3
 }
 
-const heritageStore = useHeritageStore()
-const messagesContainer = ref<HTMLElement | null>(null)
-const messages = ref<Message[]>([])
-const inputMessage = ref('')
-const isTyping = ref(false)
-
-const recommendedQuestions = [
-  '长三角有哪些世界遗产？',
-  '江苏的主要非遗项目是什么？',
-  '浙江最著名的非遗是什么？',
-  '安徽的徽文化有哪些代表？',
-  '上海有哪些非遗项目？'
-]
-
-const allProvinces = computed(() => {
-  return heritageStore.getAllProvinces()
-})
-
-const provincesRanking = computed(() => {
-  return [...allProvinces.value].sort((a, b) => b.projectCount - a.projectCount)
-})
-
-const totalProjects = computed(() => {
-  return allProvinces.value.reduce((sum, p) => sum + p.projectCount, 0)
-})
-
-const totalWorldHeritage = computed(() => {
-  return allProvinces.value.reduce((sum, p) => sum + p.worldHeritage, 0)
-})
-
-const totalCities = computed(() => {
-  const citiesSet = new Set<string>()
-  allProvinces.value.forEach((p) => {
-    p.cities.forEach((city) => citiesSet.add(city))
-  })
-  return citiesSet.size
-})
-
-const sendMessage = async (text: string) => {
-  if (!text.trim()) return
-
-  // 添加用户消息
-  messages.value.push({
-    role: 'user',
-    content: text,
-    avatar: '/figures/user-avatar.svg',
-    time: new Date()
-  })
-
-  inputMessage.value = ''
-  scrollToBottom()
-
-  // 模拟AI回复
-  isTyping.value = true
-  await new Promise((resolve) => setTimeout(resolve, 1500))
-
-  const aiResponse = generateAIResponse(text)
-  messages.value.push({
-    role: 'ai',
-    content: aiResponse,
-    avatar: '/figures/ai-avatar.svg',
-    time: new Date()
-  })
-
-  isTyping.value = false
-  scrollToBottom()
+const prevPanel = () => {
+  currentIndex.value = (currentIndex.value - 1 + 3) % 3
 }
 
-const generateAIResponse = (userMessage: string): string => {
-  const responses: Record<string, string> = {
-    '长三角有哪些世界遗产':
-      '长三角地区共有6处世界遗产：江苏3处（昆曲、太湖明珠、苏州园林），浙江1处（杭州西湖），安徽2处（黄山、三清山）。这些都是中华文明的瑰宝。',
-
-    '江苏的主要非遗项目是什么':
-      '江苏有146项非遗项目，主要包括：昆曲（百戏之祖）、苏州园林、南京云锦、苏绣、秦淮灯会等。其中昆曲已列入联合国非遗名录。',
-
-    '浙江最著名的非遗是什么':
-      '浙江有217项非遗项目，最著名的是：龙井茶制作、越剧、龙泉青瓷、杭州丝绸、东阳木雕。浙江非遗数量为长三角之最。',
-
-    '安徽的徽文化有哪些代表':
-      '安徽是徽文化发源地，代表项目包括：黄梅戏、徽派建筑、宣纸、徽墨、歙砚、徽州三雕。这些传统工艺体现了徽商文化的精髓。',
-
-    '上海有哪些非遗项目':
-      '上海有33项非遗项目，包括：豫园建筑、外滩建筑、石库门建筑、海派文化、本帮菜等。这些反映了海派文化的独特魅力。'
-  }
-
-  // 查找匹配的响应
-  for (const [key, value] of Object.entries(responses)) {
-    if (userMessage.includes(key.substring(0, 6))) {
-      return value
-    }
-  }
-
-  // 默认响应
-  return `感谢您的提问！关于"${userMessage}"，我可以为您介绍长三角地区的相关非遗项目。请从省份标签中选择具体地区，我会提供更详细的信息。`
+const goToPanel = (index: number) => {
+  currentIndex.value = index
 }
 
-const scrollToBottom = async () => {
-  await nextTick()
-  if (messagesContainer.value) {
-    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+// 自动轮播
+let autoScrollInterval: ReturnType<typeof setInterval>
+
+const startAutoScroll = () => {
+  autoScrollInterval = setInterval(() => {
+    nextPanel()
+  }, 5000)
+}
+
+const stopAutoScroll = () => {
+  if (autoScrollInterval) {
+    clearInterval(autoScrollInterval)
   }
 }
 
-const formatTime = (date: Date): string => {
-  return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-}
+// 非遗传承人
+const inheritors = ref([
+  { id: 1, name: '张三', heritage: '昆曲' },
+  { id: 2, name: '李四', heritage: '皮影戏' },
+  { id: 3, name: '王五', heritage: '剪纸' },
+  { id: 4, name: '赵六', heritage: '陶瓷' },
+  { id: 5, name: '钱七', heritage: '刺绣' },
+  { id: 6, name: '孙八', heritage: '书法' },
+  { id: 7, name: '周九', heritage: '茶艺' },
+])
 
-const newChat = () => {
-  messages.value = []
-  inputMessage.value = ''
-}
+// 相关书籍
+const books = ref([
+  { id: 1, title: '非遗保护的理论探讨' },
+  { id: 2, title: '手艺人：湖南失的江南医学' },
+  { id: 3, title: '非物质文化遗产论' },
+  { id: 4, title: '江苏国家级非遗的文化遗产概览' },
+  { id: 5, title: '非遗的活态传承与社区实践' },
+])
 
+// 相关影视
+const videos = ref([
+  { id: 1, title: '我在故宫修文物', director: '纪录片' },
+  { id: 2, title: '下町的匠人', director: '纪录片' },
+  { id: 3, title: '中国手作', director: '纪录片' },
+  { id: 4, title: '传承', director: '纪录片' },
+  { id: 5, title: '曲曲人百艺', director: '纪录片' },
+  { id: 6, title: '天工开物', director: '纪录片' },
+])
+
+// 热播影视
+const hotVideos = ref([
+  { id: 1, title: '我在故宫修文物' },
+  { id: 2, title: '下町的匠人' },
+  { id: 3, title: '中国手作' },
+  { id: 4, title: '传承' },
+  { id: 5, title: '曲曲人百艺' },
+])
+
+// 热读书籍
+const hotBooks = ref([
+  { id: 1, title: '非遗保护的理论探讨' },
+  { id: 2, title: '手艺人：湖南失的江南医学' },
+  { id: 3, title: '非物质文化遗产论' },
+  { id: 4, title: '江苏国家级非遗的文化遗产概览' },
+  { id: 5, title: '非遗的活态传承与社区实践' },
+])
+
+// 热门人物
+const hotPeople = ref([
+  { id: 1, name: '干茜' },
+  { id: 2, name: '周笑燕' },
+  { id: 3, name: '王屹文' },
+  { id: 4, name: '王杨兴' },
+  { id: 5, name: '汪美丽' },
+  { id: 6, name: '姚建茗' },
+])
+
+// 生命周期
 onMounted(() => {
-  // 初始化时聚焦到输入框
-  // 可在此处添加初始化逻辑
+  startAutoScroll()
+})
+
+onUnmounted(() => {
+  stopAutoScroll()
 })
 </script>
 
 <style scoped>
 .container {
+  position: relative;
   width: 100%;
   min-height: 100vh;
-  background: linear-gradient(135deg, #e8d5b7 0%, #d4c5a9 50%, #c8b596 100%);
+}
+
+/* 顶部英雄区 */
+.hero-section {
   position: relative;
-  overflow-x: hidden;
-  padding-bottom: 40px;
-}
-
-/* 头部样式 */
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px 30px;
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 10px;
-  margin: 20px auto;
-  max-width: 1400px;
   width: 100%;
-  backdrop-filter: blur(5px);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  background: linear-gradient(135deg, #e8d5b7 0%, #d4c5a9 50%, #c8b596 100%);
 }
 
-.logo {
+.hero-bg {
+  position: relative;
+  width: 100%;
+  height: 300px;
+  overflow: hidden;
+}
+
+.hero-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.3;
+}
+
+.hero-title {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: #4a3f35;
+  text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.5);
+  z-index: 2;
+}
+
+.hero-title h1 {
+  font-size: 56px;
+  font-weight: bold;
+  margin: 0 0 10px 0;
+  letter-spacing: 4px;
+}
+
+.hero-title p {
+  font-size: 16px;
+  margin: 0;
+  letter-spacing: 2px;
+}
+
+/* 中部三大板块轮播 */
+.middle-carousel-section {
+  width: 100%;
+  padding: 60px 0;
+  background: linear-gradient(135deg, #f8f3eb 0%, #f0e9dc 100%);
+  position: relative;
+}
+
+.carousel-container {
+  position: relative;
+  max-width: 1400px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+.carousel-track {
   display: flex;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.carousel-panel {
+  flex: 0 0 100%;
+  min-height: 450px;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+.panel-content {
+  width: 100%;
+  height: 100%;
+  padding: 40px;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 15px 50px rgba(139, 90, 43, 0.15);
+  border: 1px solid rgba(212, 165, 116, 0.3);
+}
+
+.panel-title {
+  font-size: 28px;
+  font-weight: 600;
+  color: #4a3f35;
+  margin: 0 0 40px 0;
+  padding-bottom: 20px;
+  border-bottom: 4px solid #d4a574;
+  text-align: center;
+  position: relative;
+}
+
+.panel-title::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100px;
+  height: 4px;
+  background: #8b5a2b;
+}
+
+.items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 25px;
+}
+
+.panel-item {
+  background: rgba(248, 243, 235, 0.8);
+  border-radius: 15px;
+  padding: 25px;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 2px solid transparent;
+  text-align: center;
+}
+
+.panel-item:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 15px 30px rgba(139, 90, 43, 0.2);
+  border-color: rgba(212, 165, 116, 0.4);
+  background: white;
+}
+
+.item-content {
+  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 15px;
 }
 
-.logo-icon {
-  width: 50px;
-  height: 50px;
-  background: rgba(139, 90, 43, 0.8);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 12px;
-  text-align: center;
-  border: 3px solid #8b5a2b;
-  line-height: 1.2;
+.item-icon {
+  font-size: 42px;
+  margin-bottom: 5px;
 }
 
-.logo-text {
-  font-size: 22px;
-  color: #5a4a3a;
-  font-weight: bold;
-  letter-spacing: 2px;
-}
-
-nav {
-  display: flex;
-  gap: 40px;
-}
-
-nav a {
-  color: #5a4a3a;
-  text-decoration: none;
-  font-size: 18px;
-  transition: color 0.3s;
-}
-
-nav a:hover,
-nav a.active {
-  color: #8b5a2b;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.item-content h4 {
+  margin: 0;
   font-size: 16px;
-  color: #5a4a3a;
+  color: #4a3f35;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
-.user-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-}
-
-/* 装饰元素 */
-.decoration-circle {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  pointer-events: none;
-}
-
-.circle-1 {
-  width: 300px;
-  height: 300px;
-  top: 100px;
-  right: 100px;
-}
-
-.circle-2 {
-  width: 200px;
-  height: 200px;
-  bottom: 150px;
-  left: 120px;
-}
-
-/* 主内容区域 */
-.main-content {
-  display: grid;
-  grid-template-columns: 3fr 1.2fr; /* 左侧更宽，右侧更窄 */
-  gap: 18px;
-
-  width: min(1680px, 96vw); /* ✅ 更接近铺满 */
-  margin: 0 auto;
-  padding: 0 12px;          /* ✅ 减小左右空白 */
-}
-
-/* 聊天区域 */
-.chat-section {
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 15px;
-  padding: 25px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 170px); /* ✅ 更像“占满一屏”的布局 */
-  min-height: 640px;
-}
-
-.chat-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 2px solid rgba(139, 90, 43, 0.2);
-}
-
-.chat-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 24px;
-  font-weight: bold;
-  color: #8b5a2b;
-}
-
-.new-chat-btn {
-  padding: 8px 20px;
-  background: rgba(139, 90, 43, 0.1);
-  border: 1px solid #8b5a2b;
-  border-radius: 20px;
-  color: #8b5a2b;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.item-content p {
+  margin: 0;
   font-size: 14px;
-  transition: all 0.3s;
+  color: #8b5a2b;
+  opacity: 0.9;
 }
 
-.new-chat-btn:hover {
-  background: rgba(139, 90, 43, 0.2);
-}
-
-.messages-container {
-  flex: 1;
-  overflow-y: auto;
-  padding: 15px;
-  background: rgba(255, 248, 240, 0.5);
-  border-radius: 10px;
-  margin-bottom: 15px;
-}
-
-.messages-container::-webkit-scrollbar {
-  width: 6px;
-}
-
-.messages-container::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 3px;
-}
-
-.messages-container::-webkit-scrollbar-thumb {
-  background: rgba(139, 90, 43, 0.3);
-  border-radius: 3px;
-}
-
-.no-messages {
+.carousel-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #d4a574, #c8956a);
+  color: white;
+  cursor: pointer;
+  font-size: 24px;
+  transition: all 0.3s ease;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  color: #999;
-  text-align: center;
+  box-shadow: 0 8px 25px rgba(139, 90, 43, 0.4);
+  z-index: 10;
 }
 
-.no-messages p {
-  font-size: 18px;
-  margin: 10px 0;
+.carousel-btn:hover {
+  transform: translateY(-50%) scale(1.15);
+  box-shadow: 0 12px 30px rgba(139, 90, 43, 0.5);
 }
 
-.message {
-  margin-bottom: 20px;
+.carousel-btn:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.left-btn {
+  left: 10px;
+}
+
+.right-btn {
+  right: 10px;
+}
+
+.carousel-indicators {
   display: flex;
-  gap: 10px;
-  animation: fadeIn 0.3s;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 30px;
 }
 
-.message.user {
-  flex-direction: row-reverse;
-}
-
-.message-avatar {
-  width: 40px;
-  height: 40px;
+.indicator {
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.message-content {
-  max-width: 70%;
-  padding: 12px 18px;
-  border-radius: 15px;
-  line-height: 1.6;
-  word-wrap: break-word;
-}
-
-.message.user .message-content {
-  background: linear-gradient(135deg, #8b5a2b, #a67c52);
-  color: #fff;
-  border-bottom-right-radius: 5px;
-}
-
-.message.ai .message-content {
-  background: #fff;
-  color: #333;
-  border: 1px solid rgba(139, 90, 43, 0.2);
-  border-bottom-left-radius: 5px;
-}
-
-.message-time {
-  font-size: 11px;
-  color: #999;
-  margin-top: 5px;
-  padding: 0 18px;
-}
-
-.typing-indicator {
-  display: none;
-  padding: 15px;
-  background: #fff;
-  border-radius: 15px;
-  width: fit-content;
-  border: 1px solid rgba(139, 90, 43, 0.2);
-}
-
-.typing-indicator.show {
-  display: block;
-}
-
-.typing-dots {
-  display: flex;
-  gap: 5px;
-}
-
-.typing-dots span {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #8b5a2b;
-  animation: typing 1.4s infinite;
-}
-
-.typing-dots span:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.typing-dots span:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes typing {
-  0%,
-  60%,
-  100% {
-    transform: translateY(0);
-  }
-  30% {
-    transform: translateY(-10px);
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* 推荐问题 */
-.recommended-questions {
-  margin-bottom: 15px;
-  padding: 15px;
-  background: rgba(139, 90, 43, 0.05);
-  border-radius: 10px;
-}
-
-.recommended-questions p {
-  font-size: 12px;
-  color: #999;
-  margin-bottom: 10px;
-}
-
-.question-btn {
-  display: block;
-  width: 100%;
-  padding: 8px 12px;
-  margin-bottom: 8px;
-  background: #fff;
-  border: 1px solid rgba(139, 90, 43, 0.2);
-  border-radius: 8px;
-  color: #8b5a2b;
-  font-size: 13px;
-  cursor: pointer;
-  text-align: left;
-  transition: all 0.3s;
-}
-
-.question-btn:hover {
-  background: rgba(139, 90, 43, 0.1);
-  border-color: #8b5a2b;
-}
-
-/* 输入区域 */
-.input-area {
-  display: flex;
-  gap: 10px;
-}
-
-.message-input {
-  flex: 1;
-  padding: 12px 20px;
-  border: 2px solid rgba(139, 90, 43, 0.3);
-  border-radius: 25px;
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.3s;
-}
-
-.message-input:focus {
-  border-color: #8b5a2b;
-}
-
-.send-btn {
-  padding: 12px 30px;
-  background: linear-gradient(135deg, #8b5a2b, #a67c52);
   border: none;
-  border-radius: 25px;
-  color: #fff;
-  font-size: 14px;
+  background: rgba(212, 165, 116, 0.4);
   cursor: pointer;
-  transition: all 0.3s;
-  font-weight: 500;
+  transition: all 0.3s ease;
+  padding: 0;
 }
 
-.send-btn:hover {
-  background: linear-gradient(135deg, #6d4521, #8b5a2b);
-  transform: translateY(-2px);
+.indicator:hover {
+  background: rgba(212, 165, 116, 0.8);
+  transform: scale(1.3);
 }
 
-/* 统计侧边栏 */
-.stats-sidebar {
+.indicator.active {
+  background: linear-gradient(135deg, #d4a574, #c8956a);
+  transform: scale(1.5);
+}
+
+/* 下部三列展示 */
+.bottom-section {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 50px;
+  padding: 80px 40px;
+  max-width: 1400px;
+  margin: 0 auto;
+  background: linear-gradient(135deg, rgba(232, 213, 183, 0.3) 0%, rgba(212, 197, 169, 0.3) 100%);
+}
+
+.content-column {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  padding: 40px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.12);
+  transition: all 0.4s ease;
+  border: 1px solid rgba(212, 165, 116, 0.2);
+}
+
+.content-column:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 45px rgba(139, 90, 43, 0.2);
+}
+
+.column-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #4a3f35;
+  margin: 0 0 30px 0;
+  padding-bottom: 18px;
+  border-bottom: 3px solid #d4a574;
+  position: relative;
+}
+
+.column-title::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  left: 0;
+  width: 80px;
+  height: 3px;
+  background: #8b5a2b;
+}
+
+.content-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.list-item {
+  padding: 16px 0;
+  color: #5a4f45;
+  font-size: 16px;
+  border-bottom: 1px solid rgba(212, 165, 116, 0.2);
+  cursor: pointer;
+  transition: all 0.3s ease;
   display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.stats-card {
-  background: rgba(255, 255, 255, 0.82);
-  border-radius: 16px;
-  padding: 18px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.10);
-  border: 1px solid rgba(255, 255, 255, 0.45);
-}
-
-.stats-card h3 {
-  color: #8b5a2b;
-  margin-bottom: 15px;
-  font-size: 18px;
-  border-bottom: 2px solid rgba(139, 90, 43, 0.2);
-  padding-bottom: 10px;
-}
-
-.stat-item {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(139, 90, 43, 0.1);
+  gap: 12px;
 }
 
-.stat-item:last-child {
+.list-item:hover {
+  color: #3d3328;
+  padding-left: 15px;
+  background: rgba(212, 165, 116, 0.08);
+  border-radius: 8px;
+  padding-left: 20px;
+  margin-left: -20px;
+  padding-right: 20px;
+  margin-right: -20px;
+}
+
+.list-item:last-child {
   border-bottom: none;
 }
 
-.stat-label {
-  color: #999;
-  font-size: 14px;
+.list-icon {
+  font-size: 18px;
+  opacity: 0.8;
 }
 
-.stat-value {
-  color: #8b5a2b;
-  font-size: 24px;
-  font-weight: bold;
-}
-
-/* 排行榜 */
-.ranking-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.ranking-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px;
-  background: rgba(139, 90, 43, 0.05);
-  border-radius: 8px;
-}
-
-.rank-num {
-  min-width: 25px;
-  height: 25px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #8b5a2b, #a67c52);
-  color: #fff;
-  border-radius: 50%;
-  font-size: 12px;
-  font-weight: bold;
-}
-
-.rank-name {
-  flex: 1;
-  color: #333;
-  font-size: 14px;
-}
-
-.rank-value {
-  color: #8b5a2b;
-  font-weight: bold;
-  font-size: 14px;
-}
-
-/* 快速链接 */
-.link-btn {
-  display: block;
-  padding: 12px;
-  background: rgba(139, 90, 43, 0.1);
-  border: 1px solid rgba(139, 90, 43, 0.3);
-  border-radius: 8px;
-  color: #8b5a2b;
-  text-align: center;
-  text-decoration: none;
-  margin-bottom: 10px;
-  transition: all 0.3s;
-  font-size: 14px;
-}
-
-.link-btn:last-child {
-  margin-bottom: 0;
-}
-
-.link-btn:hover {
-  background: rgba(139, 90, 43, 0.2);
-  border-color: #8b5a2b;
+/* 响应式设计 */
+@media (max-width: 1400px) {
+  .carousel-container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  .items-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 20px;
+  }
+  
+  .bottom-section {
+    max-width: 1200px;
+    gap: 40px;
+    padding: 60px 30px;
+  }
 }
 
 @media (max-width: 1024px) {
-  .main-content {
-    grid-template-columns: 1fr;
-    width: min(980px, 96vw);
-    padding: 0 12px;
+  .hero-title h1 {
+    font-size: 42px;
   }
-
-  .chat-section {
-    height: 620px;
-    min-height: 520px;
+  
+  .carousel-container {
+    max-width: 960px;
+  }
+  
+  .carousel-panel {
+    min-height: 400px;
+  }
+  
+  .panel-title {
+    font-size: 24px;
+    margin-bottom: 30px;
+  }
+  
+  .items-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+  
+  .panel-item {
+    padding: 20px;
+  }
+  
+  .item-icon {
+    font-size: 36px;
+  }
+  
+  .carousel-btn {
+    width: 50px;
+    height: 50px;
+    font-size: 20px;
+  }
+  
+  .bottom-section {
+    max-width: 960px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 30px;
+    padding: 50px 30px;
   }
 }
 
-
 @media (max-width: 768px) {
-  .main-content {
-    padding: 0 15px;
+  .hero-title h1 {
+    font-size: 32px;
   }
-
-  .chat-section {
-    height: 500px;
+  
+  .hero-title p {
+    font-size: 14px;
   }
-
-  .message-content {
+  
+  .middle-carousel-section {
+    padding: 40px 0;
+  }
+  
+  .carousel-container {
     max-width: 100%;
+    padding: 0 20px;
   }
-
-  header {
-    flex-direction: column;
+  
+  .carousel-panel {
+    min-height: 350px;
+    padding: 0 10px;
+  }
+  
+  .panel-content {
+    padding: 30px;
+    border-radius: 16px;
+  }
+  
+  .panel-title {
+    font-size: 20px;
+    margin-bottom: 25px;
+  }
+  
+  .items-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 15px;
   }
+  
+  .panel-item {
+    padding: 18px;
+  }
+  
+  .item-icon {
+    font-size: 32px;
+  }
+  
+  .item-content h4 {
+    font-size: 14px;
+  }
+  
+  .item-content p {
+    font-size: 12px;
+  }
+  
+  .carousel-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+  
+  .carousel-indicators {
+    margin-top: 20px;
+  }
+  
+  .bottom-section {
+    max-width: 100%;
+    grid-template-columns: 1fr;
+    gap: 25px;
+    padding: 40px 25px;
+  }
+  
+  .content-column {
+    padding: 30px;
+  }
+}
 
-  nav {
-    gap: 20px;
+@media (max-width: 480px) {
+  .hero-title h1 {
+    font-size: 24px;
+  }
+  
+  .hero-title p {
+    font-size: 12px;
+  }
+  
+  .carousel-container {
+    padding: 0 15px;
+  }
+  
+  .panel-content {
+    padding: 20px;
+  }
+  
+  .items-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .panel-item {
+    padding: 15px;
+  }
+  
+  .item-icon {
+    font-size: 28px;
+  }
+  
+  .item-content h4 {
+    font-size: 13px;
+  }
+  
+  .item-content p {
+    font-size: 11px;
+  }
+  
+  .carousel-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+  
+  .indicator {
+    width: 12px;
+    height: 12px;
   }
 }
 </style>

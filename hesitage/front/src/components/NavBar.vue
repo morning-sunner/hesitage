@@ -16,21 +16,14 @@
       class="navbar-menu"
       @select="handleSelect"
     >
-      <el-menu-item index="/">首页</el-menu-item>
-      <el-sub-menu index="heritage">
-        <template #title>非遗文化</template>
-        <el-menu-item index="/heritage">文化展示</el-menu-item>
-        <el-menu-item index="heritage-folk">民间文学</el-menu-item>
-        <el-menu-item index="heritage-song">说唱艺曲</el-menu-item>
-        <el-menu-item index="heritage-sports">体育游艺</el-menu-item>
-        <el-menu-item index="heritage-craft">传统技艺</el-menu-item>
-        <el-menu-item index="heritage-art">工艺美术</el-menu-item>
-      </el-sub-menu>
-      <el-menu-item index="/detail">匠人书影</el-menu-item>
-      <el-menu-item index="community">互动社区</el-menu-item>
-      <el-menu-item index="/chat">AI对话</el-menu-item>
-      <el-menu-item index="/profile">个人中心</el-menu-item>
-    </el-menu>
+    <el-menu-item index="/">首页</el-menu-item>
+    <!-- 删除了非遗文化下拉菜单，保留文化展示点击 -->
+    <el-menu-item index="/heritage">文化展示</el-menu-item>
+    <el-menu-item index="/detail">匠人书影</el-menu-item>
+    <el-menu-item index="community">互动社区</el-menu-item>
+    <el-menu-item index="/chat">AI对话</el-menu-item>
+    <el-menu-item index="/profile">个人中心</el-menu-item>
+  </el-menu>
 
     <!-- ✅ 4. 右侧用户区：加入真实登录态显示（不动其它部分） -->
     <div class="navbar-user">
