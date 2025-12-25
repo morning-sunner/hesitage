@@ -72,9 +72,12 @@
             隐私设置
           </button>
 
+          <!-- ✅ 数据管理：暂时隐藏（不删除，后面要恢复就把注释去掉） -->
+          <!--
           <button class="side-item" :class="{ active: activeSection === 'data' }" @click="goData">
             数据管理
           </button>
+          -->
 
           <button class="side-item" :class="{ active: activeSection === 'login' }" @click="goLogin">
             登录和注册
@@ -326,7 +329,8 @@ type SectionKey = 'security' | 'privacy' | 'data' | 'login'
 const activeSection = computed<SectionKey>(() => {
   if (route.path.startsWith('/profile/settings/privacy')) return 'privacy'
   if (route.path.startsWith('/profile/settings/security')) return 'security'
-  if (route.path.startsWith('/profile/settings/data')) return 'data'
+  // ✅ 数据管理：暂时隐藏后，这个高亮判断也注释掉（保留代码，便于恢复）
+  // if (route.path.startsWith('/profile/settings/data')) return 'data'
   if (route.path.startsWith('/profile/settings/login')) return 'login'
   return 'login'
 })
@@ -405,16 +409,15 @@ function onDisableAccount() {
     return
   }
 
-const target = users[idx]
-if (!target) {
-  alert('未找到该账户记录，无法停用')
-  return
-}
+  const target = users[idx]
+  if (!target) {
+    alert('未找到该账户记录，无法停用')
+    return
+  }
 
-target.deactivated = true
-target.deactivatedAt = Date.now()
-writeUsers(users)
-
+  target.deactivated = true
+  target.deactivatedAt = Date.now()
+  writeUsers(users)
 
   clearSessionAndProfile()
   alert('账户已停用（可在登录时重新启用）')
@@ -914,28 +917,6 @@ onBeforeUnmount(() => {
   .lr-grid {
     grid-template-columns: 1fr;
   }
-}
-
-/* ✅ 新增：账号文本显示更像“信息” */
-.lr-user {
-  font-size: 14px;
-  font-weight: 850;
-  color: rgba(58, 38, 24, 0.75);
-}
-
-/* ✅ 新增：未登录时头像区域禁用的视觉提示 */
-.avatar.disabled {
-  cursor: not-allowed;
-  opacity: 0.85;
-}
-.avatar.disabled:hover {
-  transform: none;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.10);
-  border-color: rgba(194, 158, 109, 0.95);
-}
-.username-input:disabled {
-  opacity: 0.75;
-  cursor: not-allowed;
 }
 
 /* ✅ 新增：账号文本显示更像“信息” */
