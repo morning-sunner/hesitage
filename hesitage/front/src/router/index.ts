@@ -47,19 +47,7 @@ const router = createRouter({
     },
     {
       path: '/profile/settings',
-      redirect: '/profile/settings/security',
-    },
-    {
-      path: '/profile/settings/security',
-      component: () => import('@/views/ProfileSettingsSecurity.vue'), 
-    },
-    {
-      path: '/profile/settings/privacy',
-      component: () => import('@/views/ProfileSettingsPrivacy.vue'), 
-    },
-    {
-      path: '/profile/settings/login',
-      component: () => import('@/views/ProfileSettingsLogin.vue'),
+      component: () => import('../views/ProfileSettings.vue'),
     },
     {
       path: '/login',
