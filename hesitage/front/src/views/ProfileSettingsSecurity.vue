@@ -54,14 +54,16 @@
             隐私设置
           </button>
 
+          <!-- ✅ 数据管理：暂时隐藏（不删除，后面要恢复把注释去掉即可） -->
+          <!--
           <button class="side-item" :class="{ active: activeSection === 'data' }" @click="goData">
             数据管理
-            </button>
+          </button>
+          -->
 
           <button class="side-item" :class="{ active: activeSection === 'login' }" @click="goLogin">
             登录和注册
           </button>
-
         </aside>
 
         <!-- 右侧内容：账户与安全 -->
@@ -141,7 +143,6 @@ function goHome() {
   router.push('/')
 }
 
-
 /** ====== localStorage keys（与其他页共用）====== */
 const LS_EMAIL_KEY = 'userEmail'
 const LS_AVATAR_KEY = 'userAvatar'
@@ -194,12 +195,11 @@ const activeSection = computed<SectionKey>(() => {
   const p = activePath.value
   if (p.startsWith('/profile/settings/security')) return 'security'
   if (p.startsWith('/profile/settings/privacy')) return 'privacy'
-  if (p.startsWith('/profile/settings/data')) return 'data'
+  // ✅ 数据管理：暂时隐藏后，这个判断也一起注释掉（保留代码便于恢复）
+  // if (p.startsWith('/profile/settings/data')) return 'data'
   if (p.startsWith('/profile/settings/login')) return 'login'
-  // 默认值：安全页写 'security'，隐私页写 'privacy'
   return 'security'
 })
-
 
 function goSecurity() {
   router.push('/profile/settings/security')
@@ -212,11 +212,9 @@ function goData() {
   // 以后做了 data 页面就改成：
   // router.push('/profile/settings/data')
 }
-
 function goLogin() {
   router.push('/profile/settings/login')
 }
-
 
 /** ====== 账户与安全 ====== */
 const username = ref('') // 只读展示
@@ -267,6 +265,22 @@ onBeforeUnmount(() => {
   disableFullBleed()
 })
 </script>
+
+<style scoped>
+/* ✅ 你的 CSS 原样保留（我未改动） */
+:global(#app.app-full-bleed) {
+  max-width: none !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+:global(body.profile-full-bleed) {
+  margin: 0;
+  overflow-x: hidden;
+  background: #faf6f2;
+}
+</style>
+
 
 <style scoped>
 /* ✅ 与收藏页一致：解除 #app 全局 max-width/padding（关键） */
