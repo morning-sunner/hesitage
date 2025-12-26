@@ -46,7 +46,7 @@
         </div>
 
         <div class="hint">
-          使用后端数据库进行身份验证
+          登录校验使用 localStorage 的 auth_users（前端可用版）。
         </div>
       </div>
     </div>
@@ -61,17 +61,17 @@
           </div>
 
           <div class="modal-desc">
-            验证码已发送到你的邮箱，请输入验证码重置密码。
+            这是演示版：验证码会用弹窗提示（真实项目应发送到邮箱/短信）。
           </div>
 
           <label class="field">
-            <div class="field-label">邮箱</div>
+            <div class="field-label">账号/邮箱</div>
             <input
-              v-model="fpEmail"
+              v-model="fpAccount"
               class="input"
-              type="email"
-              placeholder="请输入邮箱"
-              autocomplete="email"
+              type="text"
+              placeholder="请输入用户名或邮箱"
+              autocomplete="username"
             />
           </label>
 
@@ -82,7 +82,9 @@
                 v-model="fpCode"
                 class="input"
                 type="text"
-                placeholder="请输入验证码"
+                placeholder="6位验证码"
+                inputmode="numeric"
+                maxlength="6"
               />
             </label>
 
@@ -103,7 +105,7 @@
               v-model="fpNewPassword"
               class="input"
               type="password"
-              placeholder="请输入新密码（至少8位）"
+              placeholder="请输入新密码（至少6位）"
               autocomplete="new-password"
             />
           </label>
@@ -165,6 +167,8 @@ const account = ref('')
 const password = ref('')
 const loading = ref(false)
 
+// API 已在 api.ts 中定义
+
 async function onLogin() {
   const a = account.value.trim()
   const p = password.value
@@ -174,47 +178,49 @@ async function onLogin() {
 
   loading.value = true
   try {
-    const res = await authApi.login(a, p, false)
-    
-    if (!res.success) {
-      return alert(res.message || '登录失败')
+    const users = readUsers()
+    const u = findUserByAccount(users, a)
+    if (!u) return alert('账号不存在，请先注册')
+
+    // ✅ 兼容“停用账户”
+    if (u.deactivated) {
+      const ok = window.confirm('该账户已停用，是否现在重新启用并继续登录？')
+      if (!ok) return
+      // 重新启用
+      const emailKey = normalize(u.email)
+      const idx = users.findIndex(x => normalize(x.email) === emailKey)
+      const target = users[idx]
+      if (target) {
+        target.deactivated = false
+        target.deactivatedAt = undefined
+        writeUsers(users)
+      }
     }
 
-    const userData = res.data as any
-    
-    // ✅ 保存 Token 和用户信息到 localStorage
-    localStorage.setItem('token', userData.token)
+    const ph = await sha256Base64(p)
+    if (ph !== u.passwordHash) return alert('密码错误')
+
+    // ✅ 写入登录态 & 给你的个人中心/设置页用
+    const token = (crypto as any).randomUUID ? (crypto as any).randomUUID() : String(Date.now())
+    localStorage.setItem('token', token)
     localStorage.setItem('isLoggedIn', '1')
-    localStorage.setItem('auth_current_user', JSON.stringify({ 
-      username: userData.username, 
-      email: userData.email,
-      userId: userData.userId
-    }))
-    localStorage.setItem('userName', userData.username)
-    localStorage.setItem('userEmail', userData.email)
-    localStorage.setItem('userId', userData.userId)
-
-    // 保存记住我 Token（如果有的话）
-    if (userData.rememberToken) {
-      localStorage.setItem('rememberToken', userData.rememberToken)
-    }
+    localStorage.setItem('auth_current_user', JSON.stringify({ username: u.username, email: u.email }))
+    localStorage.setItem('userName', u.username)
+    localStorage.setItem('userEmail', u.email)
 
     // 让其它组件（如顶部头像）立刻更新
     window.dispatchEvent(new Event('auth-changed'))
 
     alert('登录成功')
     router.replace(redirectTo.value)
-  } catch (error) {
-    console.error('登录错误：', error)
-    alert('登录请求失败，请检查网络连接')
   } finally {
     loading.value = false
   }
 }
 
-/** ================= 忘记密码：弹窗版 ================= */
+/** ================= 忘记密码：弹窗版（落地可用） ================= */
 const forgotOpen = ref(false)
-const fpEmail = ref('')
+const fpAccount = ref('')
 const fpCode = ref('')
 const fpNewPassword = ref('')
 const fpNewPassword2 = ref('')
@@ -225,7 +231,8 @@ let fpTimer: number | null = null
 
 function openForgot() {
   forgotOpen.value = true
-  fpEmail.value = ''
+  // 默认带入登录框账号，减少用户输入
+  fpAccount.value = account.value.trim()
   fpCode.value = ''
   fpNewPassword.value = ''
   fpNewPassword2.value = ''
@@ -248,55 +255,98 @@ function startCooldown(seconds: number) {
   }, 1000)
 }
 
+function make6Code() {
+  return String(Math.floor(100000 + Math.random() * 900000))
+}
+
+type ResetPayload = { code: string; expiresAt: number }
+
+function readReset(emailLower: string): ResetPayload | null {
+  try {
+    const raw = localStorage.getItem(`${RESET_PREFIX}${emailLower}`)
+    if (!raw) return null
+    const obj = JSON.parse(raw)
+    if (!obj?.code || !obj?.expiresAt) return null
+    return obj as ResetPayload
+  } catch {
+    return null
+  }
+}
+
+function writeReset(emailLower: string, payload: ResetPayload) {
+  localStorage.setItem(`${RESET_PREFIX}${emailLower}`, JSON.stringify(payload))
+}
+
+function clearReset(emailLower: string) {
+  localStorage.removeItem(`${RESET_PREFIX}${emailLower}`)
+}
+
 async function sendResetCode() {
-  const e = fpEmail.value.trim()
-  if (!e) return alert('请输入邮箱')
+  const a = fpAccount.value.trim()
+  if (!a) return alert('请输入用户名或邮箱')
 
   fpSending.value = true
   try {
-    const res = await authApi.sendCode(e, 'reset_password')
-    
-    if (!res.success) {
-      return alert(res.message || '发送验证码失败')
-    }
+    const users = readUsers()
+    const u = findUserByAccount(users, a)
+    if (!u) return alert('账号不存在，请先注册')
 
-    alert('验证码已发送到你的邮箱')
+    const emailLower = normalize(u.email)
+    const code = make6Code()
+    const expiresAt = Date.now() + 10 * 60 * 1000 // 10分钟
+    writeReset(emailLower, { code, expiresAt })
+
+    // ✅ 演示版：直接弹出验证码（真实项目：发邮件/短信）
+    alert(`验证码（演示版）：${code}\n有效期 10 分钟`)
+
+    // 防止狂点：60s 冷却
     startCooldown(60)
-  } catch (error) {
-    console.error('发送验证码错误：', error)
-    alert('发送验证码请求失败，请检查网络连接')
   } finally {
     fpSending.value = false
   }
 }
 
 async function resetPassword() {
-  const e = fpEmail.value.trim()
+  const a = fpAccount.value.trim()
   const c = fpCode.value.trim()
   const p1 = fpNewPassword.value
   const p2 = fpNewPassword2.value
 
-  if (!e) return alert('请输入邮箱')
+  if (!a) return alert('请输入用户名或邮箱')
   if (!c) return alert('请输入验证码')
-  if (!p1 || p1.length < 8) return alert('新密码至少8位')
+  if (c.length !== 6) return alert('验证码应为6位数字')
+  if (!p1 || p1.length < 6) return alert('新密码至少6位')
   if (p1 !== p2) return alert('两次输入的新密码不一致')
 
   fpResetting.value = true
   try {
-    const res = await authApi.resetPassword(e, c, p1, p2)
-    
-    if (!res.success) {
-      return alert(res.message || '重置密码失败')
+    const users = readUsers()
+    const u = findUserByAccount(users, a)
+    if (!u) return alert('账号不存在，请先注册')
+
+    const emailLower = normalize(u.email)
+    const payload = readReset(emailLower)
+    if (!payload) return alert('请先发送验证码')
+    if (Date.now() > payload.expiresAt) {
+      clearReset(emailLower)
+      return alert('验证码已过期，请重新发送')
     }
+    if (payload.code !== c) return alert('验证码错误')
+
+    // 更新密码
+    const idx = users.findIndex(x => normalize(x.email) === emailLower)
+    const target = users[idx]
+    if (!target) return alert('未找到账户记录，无法重置')
+
+    target.passwordHash = await sha256Base64(p1)
+    writeUsers(users)
+    clearReset(emailLower)
 
     alert('密码已重置，请使用新密码登录')
-    // 回填邮箱，清空登录密码
-    account.value = e
+    // 回填账号，清空登录密码
+    account.value = u.email || u.username
     password.value = ''
     closeForgot()
-  } catch (error) {
-    console.error('重置密码错误：', error)
-    alert('重置密码请求失败，请检查网络连接')
   } finally {
     fpResetting.value = false
   }

@@ -21,18 +21,21 @@
 
         <label class="field">
           <div class="field-label">邮箱</div>
-          <input v-model="email" class="input" type="email" placeholder="请输入邮箱" autocomplete="email" />
+          <input v-model="email" class="input" type="text" placeholder="请输入邮箱" autocomplete="email" />
         </label>
 
-        <!-- 验证码 -->
+        <!-- 验证码（前端演示：生成 6 位码 + 倒计时） -->
         <div class="field">
           <div class="field-label">验证码</div>
           <div class="code-row">
             <input v-model="codeInput" class="input code-input" type="text" placeholder="验证码" />
-            <button class="btn-code" type="button" :disabled="codeCooldown > 0 || codeSending" @click="onSendCode">
-              {{ codeCooldown > 0 ? `重新获取(${codeCooldown}s)` : (codeSending ? '发送中...' : '获取验证码') }}
+            <button class="btn-code" type="button" :disabled="codeCooldown > 0" @click="onSendCode">
+              {{ codeCooldown > 0 ? `重新获取(${codeCooldown}s)` : '获取验证码' }}
             </button>
           </div>
+
+          <!-- 仅用于演示：把验证码提示出来（你接后端发邮件后删掉这行即可） -->
+          <div v-if="devCodeHint" class="dev-hint">演示验证码：{{ devCodeHint }}</div>
         </div>
 
         <label class="field">
@@ -69,7 +72,7 @@
         </div>
 
         <div class="hint">
-          使用后端数据库验证注册信息
+          注册信息保存在本机 localStorage（前端可用版）。你后续接后端时，把 onSendCode / onRegister 换成接口请求即可。
         </div>
       </div>
     </div>
@@ -79,7 +82,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { authApi } from '../utils/api'
 
 const router = useRouter()
 const route = useRoute()
@@ -109,15 +111,57 @@ const codeInput = ref('')
 const password = ref('')
 const confirm = ref('')
 const loading = ref(false)
-const codeSending = ref(false)
-const codeCooldown = ref(0)
-let timer: number | null = null
+
+/** ====== 用户库（前端可用版）====== */
+type LocalUser = {
+  username: string
+  email: string
+  passwordHash: string
+  createdAt: number
+}
+const LS_USERS = 'auth_users'
+
+function readUsers(): LocalUser[] {
+  try {
+    const raw = localStorage.getItem(LS_USERS)
+    if (!raw) return []
+    const arr = JSON.parse(raw)
+    return Array.isArray(arr) ? arr : []
+  } catch {
+    return []
+  }
+}
+function writeUsers(users: LocalUser[]) {
+  localStorage.setItem(LS_USERS, JSON.stringify(users))
+}
+
+function normalize(s: string) {
+  return (s || '').trim().toLowerCase()
+}
 
 function isEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 }
 
-function startCodeCooldown(sec = 60) {
+async function sha256Base64(text: string): Promise<string> {
+  const enc = new TextEncoder().encode(text)
+  const hash = await crypto.subtle.digest('SHA-256', enc)
+  const bytes = new Uint8Array(hash)
+  let bin = ''
+  for (const b of bytes) bin += String.fromCharCode(b)
+  return btoa(bin)
+}
+
+/** ====== 验证码（演示版：本机生成+存储）====== */
+const devCodeHint = ref('') // 演示提示（你接后端发邮件后删掉即可）
+const codeCooldown = ref(0)
+let timer: number | null = null
+
+function gen6Code() {
+  return Math.floor(100000 + Math.random() * 900000).toString()
+}
+
+function startCooldown(sec = 60) {
   codeCooldown.value = sec
   if (timer) window.clearInterval(timer)
   timer = window.setInterval(() => {
@@ -130,30 +174,39 @@ function startCodeCooldown(sec = 60) {
   }, 1000)
 }
 
-async function onSendCode() {
+function onSendCode() {
   const e = email.value.trim()
   if (!e) return alert('请先输入邮箱')
   if (!isEmail(e)) return alert('邮箱格式不正确')
 
-  codeSending.value = true
-  try {
-    const res = await authApi.sendCode(e, 'register')
-    
-    if (!res.success) {
-      return alert(res.message || '发送验证码失败')
-    }
+  const code = gen6Code()
+  const key = `auth_email_code:${normalize(e)}`
+  localStorage.setItem(key, JSON.stringify({ code, createdAt: Date.now() }))
 
-    alert('验证码已发送到你的邮箱，请查收')
-    startCodeCooldown(60)
-  } catch (error) {
-    console.error('发送验证码错误：', error)
-    alert('发送验证码请求失败，请检查网络连接')
-  } finally {
-    codeSending.value = false
+  // 演示用：显示验证码（接后端发邮件后删掉这一行即可）
+  devCodeHint.value = code
+
+  startCooldown(60)
+  alert('验证码已生成（演示版：请看页面提示码）')
+}
+
+function verifyCode(e: string, input: string) {
+  const key = `auth_email_code:${normalize(e)}`
+  const raw = localStorage.getItem(key)
+  if (!raw) return { ok: false, msg: '请先获取验证码' }
+
+  try {
+    const obj = JSON.parse(raw) as { code: string; createdAt: number }
+    const expired = Date.now() - obj.createdAt > 10 * 60 * 1000 // 10分钟
+    if (expired) return { ok: false, msg: '验证码已过期，请重新获取' }
+    if ((input || '').trim() !== obj.code) return { ok: false, msg: '验证码错误' }
+    return { ok: true, msg: '' }
+  } catch {
+    return { ok: false, msg: '验证码异常，请重新获取' }
   }
 }
 
-/** ====== 注册提交 ====== */
+/** ====== 注册提交（真正可用：写入本机用户库）====== */
 async function onRegister() {
   const u = username.value.trim()
   const e = email.value.trim()
@@ -164,7 +217,9 @@ async function onRegister() {
   if (!u) return alert('请输入用户名')
   if (!e) return alert('请输入邮箱')
   if (!isEmail(e)) return alert('邮箱格式不正确')
-  if (!c) return alert('请输入验证码')
+
+  const codeCheck = verifyCode(e, c)
+  if (!codeCheck.ok) return alert(codeCheck.msg)
 
   if (!p) return alert('请输入密码')
   if (p.length < 8) return alert('密码至少 8 位')
@@ -174,32 +229,32 @@ async function onRegister() {
 
   loading.value = true
   try {
-    const res = await authApi.register(u, e, p, cp, c)
-    
-    if (!res.success) {
-      return alert(res.message || '注册失败')
-    }
+    const users = readUsers()
+    const nu = normalize(u)
+    const ne = normalize(e)
 
-    const userData = res.data as any
-    
+    if (users.some(x => normalize(x.username) === nu)) return alert('该用户名已存在')
+    if (users.some(x => normalize(x.email) === ne)) return alert('该邮箱已注册')
+
+    const passwordHash = await sha256Base64(p)
+    users.push({ username: u, email: e, passwordHash, createdAt: Date.now() })
+    writeUsers(users)
+
     // ✅ 写入你个人中心/设置页会用到的信息
     localStorage.setItem('userName', u)
     localStorage.setItem('userEmail', e)
-    localStorage.setItem('userId', userData.userId)
 
     // ✅ 自动登录：写 token / 登录态
-    localStorage.setItem('token', userData.token)
+    const token = (crypto as any).randomUUID ? (crypto as any).randomUUID() : String(Date.now())
+    localStorage.setItem('token', token)
     localStorage.setItem('isLoggedIn', '1')
-    localStorage.setItem('auth_current_user', JSON.stringify({ username: u, email: e, userId: userData.userId }))
+    localStorage.setItem('auth_current_user', JSON.stringify({ username: u, email: e }))
 
-    // 让其它组件立刻更新
-    window.dispatchEvent(new Event('auth-changed'))
-
-    alert('注册成功！')
-    router.replace(redirectTo.value)
-  } catch (error) {
-    console.error('注册错误：', error)
-    alert('注册请求失败，请检查网络连接')
+    alert('注册成功，请登录')
+    router.replace({
+    path: '/login',
+    query: { redirect: redirectTo.value, account: e } // ✅ 顺便把邮箱带过去
+    })
   } finally {
     loading.value = false
   }
@@ -214,7 +269,11 @@ onBeforeUnmount(() => {
   disableFullBleed()
   if (timer) window.clearInterval(timer)
 })
+
+// ✅ 你模板里用到的函数名要导出（script setup 自动可用）
+// onSendCode / onRegister / goLogin / devCodeHint / codeCooldown 等
 </script>
+
 
 <style scoped>
 /* ✅ 与登录页一致：解除 #app 限制 */
@@ -368,6 +427,12 @@ onBeforeUnmount(() => {
   opacity: 0.65;
   cursor: not-allowed;
   transform: none;
+}
+
+.dev-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.55);
 }
 
 /* 注册按钮：与登录页一致 */

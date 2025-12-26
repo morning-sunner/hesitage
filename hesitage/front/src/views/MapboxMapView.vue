@@ -6,6 +6,10 @@
     <!-- 地图容器 -->
     <div class="map-wrapper">
       <div ref="mapContainer" id="map" class="tianditu-map"></div>
+      <!-- ECharts 覆盖层（与 Mapbox 互斥显示） -->
+      <div v-show="useEcharts" class="echarts-overlay">
+        <YtRegionMap />
+      </div>
 
       <!-- 顶部工具栏 -->
       <div class="toolbar">
@@ -16,6 +20,9 @@
           </button>
           <button class="toolbar-btn" @click="toggleHeritageLayers" title="切换非遗项目">
             <span>🎭</span> 非遗项目
+          </button>
+          <button class="toolbar-btn" @click="useEcharts = !useEcharts" :class="{ active: useEcharts }" title="切换 ECharts 地图">
+            <span>🧭</span> ECharts 地图
           </button>
         </div>
 
@@ -125,10 +132,14 @@
 </template>
 
 <script setup lang="ts">
+import YtRegionMap from '@/components/YtRegionMap.vue'
 import { ref, onMounted, computed, onUnmounted } from 'vue'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import NavBar from '../components/NavBar.vue'
+
+// 是否使用 ECharts 地图（覆盖层显示）
+const useEcharts = ref(false)
 
 // 定义非遗项目的数据结构类型
 interface HeritageItem {
@@ -455,6 +466,15 @@ const filterByProvince = (provinceId: string) => { selectedProvince.value = prov
 .tianditu-map {
   width: 100%;
   height: 100%;
+}
+
+/* ECharts 地图覆盖层，与 Mapbox 互斥显示 */
+.echarts-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: auto;
+  background: transparent;
 }
 
 /* 工具栏 */

@@ -23,6 +23,45 @@ async function initDatabase() {
     await client.query('CREATE EXTENSION IF NOT EXISTS postgis');
     console.log('✓ PostGIS 已安装或已存在');
 
+    // 创建用户表
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS shapefile.users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(100) UNIQUE NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        avatar VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✓ users 表已创建');
+
+    // 创建验证码表（用于注册和密码重置）
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS shapefile.verification_codes (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
+        code VARCHAR(6) NOT NULL,
+        type VARCHAR(20) NOT NULL,
+        expires_at TIMESTAMP,
+        used BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✓ verification_codes 表已创建');
+
+    // 创建记住我Token表
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS shapefile.remember_tokens (
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL REFERENCES shapefile.users(id) ON DELETE CASCADE,
+        token VARCHAR(255) UNIQUE NOT NULL,
+        expires_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✓ remember_tokens 表已创建');
+
     // 创建非遗项目表
     await client.query(`
       CREATE TABLE IF NOT EXISTS shapefile.heritage_items (

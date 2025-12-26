@@ -20,6 +20,16 @@ const router = createRouter({
       component: () => import('../views/ChatView.vue'),
     },
     {
+      path: '/ai-dialog',
+      name: 'ai-dialog',
+      component: () => import('../views/AIDialogView.vue'),
+    },
+    {
+      path: '/community',
+      name: 'community',
+      component: () => import('../views/CommunityView.vue'),
+    },
+    {
       path: '/heritage',
       name: 'heritage',
       component: () => import('../views/HeritageView.vue'),
@@ -60,14 +70,9 @@ const router = createRouter({
       component: () => import('@/views/RegisterView.vue'),
     },
     {
-      path: '/login',
-      name: 'login',
-      component: () => import('@/views/LoginView.vue'),
-    },
-    {
-      path: '/register',
-      name: 'register',
-      component: () => import('@/views/RegisterView.vue'),
+      path: '/forgot-password',
+      name: 'forgot-password',
+      component: () => import('@/views/ForgotPasswordView.vue'),
     }
     
 

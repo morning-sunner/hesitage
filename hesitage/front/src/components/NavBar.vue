@@ -20,8 +20,8 @@
     <!-- 删除了非遗文化下拉菜单，保留文化展示点击 -->
     <el-menu-item index="/heritage">文化展示</el-menu-item>
     <el-menu-item index="/detail">匠人书影</el-menu-item>
-    <el-menu-item index="community">互动社区</el-menu-item>
-    <el-menu-item index="/chat">AI对话</el-menu-item>
+    <el-menu-item index="/community">互动社区</el-menu-item>
+    <el-menu-item index="/ai-dialog">AI对话</el-menu-item>
     <el-menu-item index="/profile">个人中心</el-menu-item>
   </el-menu>
 
@@ -95,7 +95,7 @@ function syncAuth() {
 
 const handleSelect = (key: string) => {
   // 处理导航跳转
-  if (key === '/' || key === '/chat' || key === '/heritage' || key === '/detail' || key === '/profile') {
+  if (key === '/' || key === '/chat' || key === '/ai-dialog' || key === '/community' || key === '/heritage' || key === '/detail' || key === '/profile') {
     router.push(key)
     activeMenu.value = key
   } else {

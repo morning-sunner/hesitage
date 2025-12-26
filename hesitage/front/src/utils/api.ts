@@ -14,6 +14,95 @@ interface ApiResponse<T> {
 }
 
 /**
+ * 用户认证 API
+ */
+export const authApi = {
+  /**
+   * 发送验证码
+   */
+  sendCode: async (email: string, type: 'register' | 'reset_password') => {
+    const res = await fetch(`${API_BASE}/auth/send-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, type }),
+    })
+    return res.json() as Promise<ApiResponse<any>>
+  },
+
+  /**
+   * 用户注册
+   */
+  register: async (username: string, email: string, password: string, confirmPassword: string, code: string) => {
+    const res = await fetch(`${API_BASE}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, email, password, confirmPassword, code }),
+    })
+    return res.json() as Promise<ApiResponse<any>>
+  },
+
+  /**
+   * 用户登录
+   */
+  login: async (account: string, password: string, rememberMe: boolean) => {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ account, password, rememberMe }),
+    })
+    return res.json() as Promise<ApiResponse<any>>
+  },
+
+  /**
+   * 自动登录（使用记住我token）
+   */
+  autoLogin: async (rememberToken: string) => {
+    const res = await fetch(`${API_BASE}/auth/auto-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rememberToken }),
+    })
+    return res.json() as Promise<ApiResponse<any>>
+  },
+
+  /**
+   * 请求重置密码
+   */
+  requestResetPassword: async (email: string) => {
+    const res = await fetch(`${API_BASE}/auth/request-reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+    return res.json() as Promise<ApiResponse<any>>
+  },
+
+  /**
+   * 重置密码
+   */
+  resetPassword: async (email: string, code: string, newPassword: string, confirmPassword: string) => {
+    const res = await fetch(`${API_BASE}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code, newPassword, confirmPassword }),
+    })
+    return res.json() as Promise<ApiResponse<any>>
+  },
+
+  /**
+   * 验证 Token
+   */
+  verifyToken: async (token: string) => {
+    const res = await fetch(`${API_BASE}/auth/verify-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    })
+    return res.json() as Promise<ApiResponse<any>>
+  },
+}
+
+/**
  * 非遗项目 API
  */
 export const heritageApi = {
