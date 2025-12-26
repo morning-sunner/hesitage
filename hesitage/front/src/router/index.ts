@@ -12,7 +12,7 @@ const router = createRouter({
     {
       path: '/map',
       name: 'map',
-      component: () => import('../views/MapboxMapView.vue'),
+      component: () => import('../views/MapView.vue'),
     },
     {
       path: '/chat',
