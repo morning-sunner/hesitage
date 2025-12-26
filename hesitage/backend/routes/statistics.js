@@ -13,8 +13,8 @@ router.get('/', async (req, res) => {
         COUNT(*) as total,
         COUNT(DISTINCT category) as categories_count,
         COUNT(DISTINCT province) as provinces_count,
-        COUNT(DISTINCT city) as cities_count
-      FROM heritage_items
+        COUNT(DISTINCT type) as types_count
+      FROM shapefile.heritage_items
     `);
 
     res.json({
@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
         total: parseInt(result.rows[0].total),
         categoriesCount: parseInt(result.rows[0].categories_count),
         provincesCount: parseInt(result.rows[0].provinces_count),
-        citiesCount: parseInt(result.rows[0].cities_count)
+        typesCount: parseInt(result.rows[0].types_count)
       }
     });
   } catch (error) {
@@ -46,7 +46,7 @@ router.get('/by-category', async (req, res) => {
       SELECT 
         category,
         COUNT(*) as count
-      FROM heritage_items
+      FROM shapefile.heritage_items
       GROUP BY category
       ORDER BY count DESC
     `);
@@ -80,16 +80,14 @@ router.get('/by-region', async (req, res) => {
     const result = await db.query(`
       SELECT 
         province,
-        city,
         COUNT(*) as count
-      FROM heritage_items
-      GROUP BY province, city
-      ORDER BY province, city
+      FROM shapefile.heritage_items
+      GROUP BY province
+      ORDER BY province
     `);
 
     const data = result.rows.map(row => ({
       province: row.province,
-      city: row.city,
       count: parseInt(row.count)
     }));
 

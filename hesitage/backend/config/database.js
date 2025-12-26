@@ -1,12 +1,13 @@
 const { Pool } = require('pg');
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 
 // 确保密码是字符串
 const config = {
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME || 'heritage_db',
+  database: process.env.DB_NAME || 'hositage',
   user: process.env.DB_USER || 'postgres',
-  password: String(process.env.DB_PASSWORD || 'postgres'),
+  password: String(process.env.DB_PASSWORD || '123456'),
 };
 
 console.log('Database config:', {

@@ -19,21 +19,28 @@ router.post('/point-query', async (req, res) => {
 
     const result = await db.query(`
       SELECT 
-        id, 
+        proj_num,
         name, 
+        name_en,
         category, 
-        location, 
-        description,
+        category_en,
+        location,
+        location_en,
         province,
-        city,
-        ST_X(coordinates) as lng,
-        ST_Y(coordinates) as lat,
-        ST_Distance(coordinates, ST_GeomFromText('POINT(${lng} ${lat})', 4326)) as distance
+        province_en,
+        type,
+        unit,
+        time,
+        longitude,
+        latitude,
+        region_4,
+        region_7,
+        ST_Distance(geometry, ST_SetSRID(ST_Point($1, $2), 4326)) as distance
       FROM shapefile.heritage_items
-      WHERE ST_DWithin(coordinates, ST_GeomFromText('POINT(${lng} ${lat})', 4326), ${radius})
+      WHERE ST_DWithin(geometry, ST_SetSRID(ST_Point($1, $2), 4326), $3)
       ORDER BY distance
       LIMIT 10
-    `);
+    `, [lng, lat, radius]);
 
     res.json({
       success: true,
@@ -68,20 +75,27 @@ router.post('/buffer-query', async (req, res) => {
 
     const result = await db.query(`
       SELECT 
-        id, 
+        proj_num,
         name, 
+        name_en,
         category, 
-        location, 
-        description,
+        category_en,
+        location,
+        location_en,
         province,
-        city,
-        ST_X(coordinates) as lng,
-        ST_Y(coordinates) as lat,
-        ST_Distance(coordinates, ST_GeomFromText('POINT(${lng} ${lat})', 4326)) as distance
+        province_en,
+        type,
+        unit,
+        time,
+        longitude,
+        latitude,
+        region_4,
+        region_7,
+        ST_Distance(geometry, ST_SetSRID(ST_Point($1, $2), 4326)) as distance
       FROM shapefile.heritage_items
-      WHERE ST_DWithin(coordinates, ST_GeomFromText('POINT(${lng} ${lat})', 4326), ${radius})
+      WHERE ST_DWithin(geometry, ST_SetSRID(ST_Point($1, $2), 4326), $3)
       ORDER BY distance
-    `);
+    `, [lng, lat, radius]);
 
     res.json({
       success: true,
@@ -105,26 +119,33 @@ router.post('/buffer-query', async (req, res) => {
  */
 router.post('/within-region', async (req, res) => {
   try {
-    const { province, city } = req.body;
+    const { province } = req.body;
 
-    if (!province && !city) {
+    if (!province) {
       return res.status(400).json({
         success: false,
-        message: '缺少必要参数：province 或 city'
+        message: '缺少必要参数：province'
       });
     }
 
     let query = `
       SELECT 
-        id, 
+        proj_num,
         name, 
+        name_en,
         category, 
-        location, 
-        description,
+        category_en,
+        location,
+        location_en,
         province,
-        city,
-        ST_X(coordinates) as lng,
-        ST_Y(coordinates) as lat
+        province_en,
+        type,
+        unit,
+        time,
+        longitude,
+        latitude,
+        region_4,
+        region_7
       FROM shapefile.heritage_items
       WHERE 1=1
     `;
@@ -135,12 +156,7 @@ router.post('/within-region', async (req, res) => {
       params.push(province);
     }
 
-    if (city) {
-      query += ` AND city = $${params.length + 1}`;
-      params.push(city);
-    }
-
-    query += ' ORDER BY id';
+    query += ' ORDER BY proj_num';
 
     const result = await db.query(query, params);
 
@@ -148,7 +164,7 @@ router.post('/within-region', async (req, res) => {
       success: true,
       data: result.rows,
       total: result.rows.length,
-      filter: { province, city }
+      filter: { province }
     });
   } catch (error) {
     console.error('区域查询失败:', error);

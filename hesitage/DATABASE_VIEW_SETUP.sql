@@ -11,28 +11,30 @@
 
 -- 创建视图: heritage_items
 -- 此视图映射原表的字段到 API 期望的字段名，便于后端查询
+-- 字段总数: 21 个（全部映射）
 
 CREATE OR REPLACE VIEW shapefile.heritage_items AS
 SELECT 
-    OBJECTID as id,                          -- 唯一ID
-    Name_CN as name,                         -- 名称 (中文)
-    Name_EN as name_en,                      -- 名称 (英文)
-    CategoryCN as category,                  -- 类别 (中文)
-    CategoryEN as category_en,               -- 类别 (英文)
-    Place_CN as location,                    -- 地点 (中文)
-    Place_EN as location_en,                 -- 地点 (英文)
-    X as longitude,                          -- 经度
-    Y as latitude,                           -- 纬度
-    ProvinceCN as province,                  -- 省份 (中文)
-    ProvinceEN as province_en,               -- 省份 (英文)
-    "一级分类代码" as category_level_1,
-    "一级分类名称CN" as category_level_1_name,
-    "二级分类代码" as category_level_2,
-    "二级分类名称CN" as category_level_2_name,
-    "三级分类代码" as category_level_3,
-    "三级分类名称CN" as category_level_3_name,
-    "四级分类代码" as category_level_4,
-    "四级分类名称CN" as category_level_4_name,
+    "Proj_num" as proj_num,                  -- 项目号
+    "Name_CN" as name,                       -- 名称 (中文)
+    "Name_EN" as name_en,                    -- 名称 (英文)
+    "CategoryCN" as category,                -- 类别 (中文)
+    "CategoryEN" as category_en,             -- 类别 (英文)
+    "Time" as time,                          -- 时间
+    "Type_CN" as type,                       -- 类型 (中文)
+    "Type_EN" as type_en,                    -- 类型 (英文)
+    "Place_CN" as location,                  -- 地点 (中文)
+    "Place_EN" as location_en,               -- 地点 (英文)
+    "Unit_CN" as unit,                       -- 单位 (中文)
+    "Unit_EN" as unit_en,                    -- 单位 (英文)
+    "X" as longitude,                        -- 经度
+    "Y" as latitude,                         -- 纬度
+    "ProvinceCN" as province,                -- 省份 (中文)
+    "ProvinceEN" as province_en,             -- 省份 (英文)
+    "Region4CN" as region_4,                 -- 4级区域 (中文)
+    "Region4EN" as region_4_en,              -- 4级区域 (英文)
+    "Region7CN" as region_7,                 -- 7级区域 (中文)
+    "Region7EN" as region_7_en,              -- 7级区域 (英文)
     geometry as geometry                     -- PostGIS 几何列
 FROM shapefile."国家级非遗点位GCS_WGS_1984";
 
