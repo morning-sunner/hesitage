@@ -15,6 +15,11 @@ interface HeritageData {
   coord: [number, number]
 }
 
+interface ProvinceStats {
+  province: string
+  count: number
+}
+
 // resize 处理函数引用，用于正确移除监听器
 let resizeHandler: (() => void) | null = null
 
@@ -30,21 +35,82 @@ const loadMapData = async () => {
   }
 }
 
+// 从后端获取省份统计数据
+const fetchProvinceStats = async (): Promise<ProvinceStats[]> => {
+  try {
+    const response = await fetch('/api/statistics/by-province')
+    const result = await response.json()
+    
+    console.log('📊 API返回的完整数据:', result)
+    
+    if (result.success && result.data) {
+      console.log('✓ 省份统计数据加载成功，共', result.data.length, '条')
+      result.data.forEach(item => {
+        console.log(`  ${item.province}: ${item.count} 项`)
+      })
+      return result.data
+    } else {
+      console.error('❌ API返回success=false:', result.message)
+      return []
+    }
+  } catch (error) {
+    console.error('❌ 获取统计数据异常:', error)
+    return []
+  }
+}
+
+// 省份名称标准化（处理数据库中的不同写法）
+const normalizeProvinceName = (name: string): string => {
+  const nameMap: Record<string, string> = {
+    'jiangsu': '江苏',
+    'jiangsu province': '江苏',
+    '江苏省': '江苏',
+    'zhejiang': '浙江',
+    'zhejiang province': '浙江',
+    '浙江省': '浙江',
+    'anhui': '安徽',
+    'anhui province': '安徽',
+    '安徽省': '安徽',
+    'shanghai': '上海',
+    'shanghai city': '上海',
+    '上海市': '上海'
+  }
+  
+  const lower = name.toLowerCase().trim()
+  return nameMap[lower] || name
+}
+
 onMounted(async () => {
   if (!chartContainer.value) return
 
   // 先加载地图数据
   await loadMapData()
 
-  chart = echarts.init(chartContainer.value)
+  // 获取统计数据
+  const statsData = await fetchProvinceStats()
 
-  // 长三角四省的地理信息和数据
+  // 转换为地图所需的格式
+  const provinceDataMap = new Map<string, number>()
+  statsData.forEach(stat => {
+    const normalizedName = normalizeProvinceName(stat.province)
+    console.log(`  原始: "${stat.province}" -> 标准化: "${normalizedName}" (数量: ${stat.count})`)
+    provinceDataMap.set(normalizedName, stat.count)
+  })
+
+  console.log('📍 处理后的省份数据:', Array.from(provinceDataMap.entries()))
+
+  // 长三角四省数据
   const ytRegionData = [
-    { name: '江苏', value: 12 },
-    { name: '浙江', value: 15 },
-    { name: '安徽', value: 8 },
-    { name: '上海', value: 10 }
+    { name: '江苏', value: provinceDataMap.get('江苏') || 0 },
+    { name: '浙江', value: provinceDataMap.get('浙江') || 0 },
+    { name: '安徽', value: provinceDataMap.get('安徽') || 0 },
+    { name: '上海', value: provinceDataMap.get('上海') || 0 }
   ]
+
+  console.log('🗺️ 最终地图数据:', ytRegionData)
+
+  // 计算最大值用于热力图
+  const maxValue = Math.max(...ytRegionData.map(d => d.value), 1)
 
   // 非遗散点数据（示例）
   const heritagePoints = [
@@ -57,9 +123,11 @@ onMounted(async () => {
     { name: '上海豫园', value: [121.499, 31.234, 5] },
   ]
 
+  chart = echarts.init(chartContainer.value)
+
   const option = {
     title: {
-      text: '长三角非遗分布地图',
+      text: '长三角非遗分布地图（数据驱动热力）',
       left: 'center',
       top: 20,
       textStyle: {
@@ -80,7 +148,7 @@ onMounted(async () => {
           return `<div style="padding: 5px;">${params.name}</div>`
         }
         if (params.componentSubType === 'map') {
-          return `<div style="padding: 5px;">${params.name}: ${params.value} 个非遗项目</div>`
+          return `<div style="padding: 5px;"><strong>${params.name}</strong><br/>非遗项目数: ${params.value}</div>`
         }
         return params.name
       }
@@ -180,7 +248,7 @@ onMounted(async () => {
     ],
     visualMap: {
       min: 0,
-      max: 15,
+      max: maxValue,
       splitNumber: 5,
       inRange: {
         color: ['#f0e6d8', '#e0c899', '#d4a574', '#c9916f', '#8b6f47']
