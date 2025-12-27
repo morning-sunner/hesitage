@@ -253,3 +253,11 @@ interface ProvinceStats {
   province: string
   count: number
 }
+
+// 默认导出所有 API
+export default {
+  authApi,
+  heritageApi,
+  spatialApi,
+  statisticsApi,
+}

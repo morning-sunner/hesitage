@@ -116,7 +116,7 @@ router.get('/by-province', async (req, res) => {
       SELECT 
         province,
         COUNT(*) as count
-      FROM heritage_items
+      FROM shapefile.heritage_items
       GROUP BY province
       ORDER BY count DESC
     `);

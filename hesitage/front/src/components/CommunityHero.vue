@@ -73,19 +73,41 @@
       </div>
     </div>
 
-    <!-- 开始按钮 -->
+    <!-- 开始按钮区域 -->
     <div class="start-section">
-      <button class="start-button" @click="$emit('start-quiz')">
-        <span class="button-text">开 始 挑 战</span>
-        <span class="button-icon">→</span>
-      </button>
-      <p class="button-hint">点击开始非遗知识之旅</p>
+      <!-- 模式选择卡片 -->
+      <div class="mode-cards">
+        <div class="mode-card practice-card" @click="startMode('practice')">
+          <div class="mode-icon">📝</div>
+          <h3 class="mode-title">练习模式</h3>
+          <p class="mode-desc">轻松学习，即时反馈</p>
+          <ul class="mode-features">
+            <li>✓ 答完立即查看解析</li>
+            <li>✓ 随时练习巩固</li>
+            <li>✓ 不计入排行榜</li>
+          </ul>
+          <button class="mode-button practice-button">开始练习</button>
+        </div>
+
+        <div class="mode-card challenge-card" @click="startMode('challenge')">
+          <div class="mode-icon">🏆</div>
+          <h3 class="mode-title">挑战模式</h3>
+          <p class="mode-desc">正式比赛，冲击榜单</p>
+          <ul class="mode-features">
+            <li>🌟 成绩计入排行榜</li>
+            <li>🌟 完成后统一评分</li>
+            <li>🌟 争夺荣誉称号</li>
+          </ul>
+          <button class="mode-button challenge-button">开始挑战</button>
+        </div>
+      </div>
+
       <div class="difficulty-selector">
         <label>选择难度：</label>
         <select v-model="difficulty" class="difficulty-select" @change="$emit('update:difficulty', difficulty)">
-          <option value="easy">初级 (5题)</option>
-          <option value="medium">中级 (8题)</option>
-          <option value="hard">高级 (12题)</option>
+          <option value="easy">初级 (10题)</option>
+          <option value="medium">中级 (20题)</option>
+          <option value="hard">高级 (25题)</option>
         </select>
       </div>
     </div>
@@ -104,7 +126,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  'start-quiz': []
+  'start-quiz': [mode: 'practice' | 'challenge']
   'update:difficulty': [value: string]
   'open-modal': [type: string]
 }>()
@@ -119,6 +141,10 @@ const toggleMenu = () => {
 const openModal = (type: string) => {
   emit('open-modal', type)
   showMenu.value = false
+}
+
+const startMode = (mode: 'practice' | 'challenge') => {
+  emit('start-quiz', mode)
 }
 
 const handleClickOutside = (event: MouseEvent) => {
@@ -421,6 +447,7 @@ onUnmounted(() => {
 .difficulty-selector {
   margin-top: 20px;
   display: flex;
+  justify-content: center;
   align-items: center;
   gap: 10px;
   font-size: 0.9em;
@@ -433,6 +460,113 @@ onUnmounted(() => {
   background: white;
   color: #8b6f47;
   font-weight: bold;
+}
+
+/* 模式选择卡片 */
+.mode-cards {
+  display: flex;
+  gap: 30px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.mode-card {
+  background: white;
+  border-radius: 16px;
+  padding: 30px;
+  width: 280px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.mode-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.practice-card {
+  border-color: #67c23a;
+}
+
+.practice-card:hover {
+  border-color: #67c23a;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2f1 100%);
+}
+
+.challenge-card {
+  border-color: #f56c6c;
+}
+
+.challenge-card:hover {
+  border-color: #f56c6c;
+  background: linear-gradient(135deg, #fff4e6 0%, #ffe7d9 100%);
+}
+
+.mode-icon {
+  font-size: 3em;
+  margin-bottom: 15px;
+}
+
+.mode-title {
+  font-size: 1.5em;
+  color: #333;
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+.mode-desc {
+  color: #666;
+  margin-bottom: 20px;
+  font-size: 0.95em;
+}
+
+.mode-features {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0;
+  text-align: left;
+}
+
+.mode-features li {
+  padding: 8px 0;
+  color: #555;
+  font-size: 0.9em;
+  line-height: 1.6;
+}
+
+.mode-button {
+  width: 100%;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+}
+
+.practice-button {
+  background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);
+  color: white;
+}
+
+.practice-button:hover {
+  background: linear-gradient(135deg, #85ce61 0%, #67c23a 100%);
+  transform: scale(1.05);
+}
+
+.challenge-button {
+  background: linear-gradient(135deg, #f56c6c 0%, #f78989 100%);
+  color: white;
+}
+
+.challenge-button:hover {
+  background: linear-gradient(135deg, #f78989 0%, #f56c6c 100%);
+  transform: scale(1.05);
 }
 
 .badge {

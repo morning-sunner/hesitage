@@ -45,7 +45,7 @@ const fetchProvinceStats = async (): Promise<ProvinceStats[]> => {
     
     if (result.success && result.data) {
       console.log('✓ 省份统计数据加载成功，共', result.data.length, '条')
-      result.data.forEach(item => {
+      result.data.forEach((item: ProvinceStats) => {
         console.log(`  ${item.province}: ${item.count} 项`)
       })
       return result.data

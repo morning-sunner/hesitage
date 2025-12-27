@@ -40,16 +40,47 @@
 
         <!-- 排行榜 -->
         <div v-if="type === 'leaderboard'" class="leaderboard-modal-content">
-          <div class="leaderboard-item" v-for="(user, index) in topUsers" :key="index">
-            <div class="rank">{{ index + 1 }}</div>
-            <div class="user-info">
-              <div class="avatar">{{ user.avatar }}</div>
-              <div class="user-details">
-                <span class="username">{{ user.name }}</span>
-                <span class="score">{{ user.score }}分</span>
+          <!-- 难度选择器 -->
+          <div class="difficulty-tabs">
+            <button 
+              v-for="diff in difficultyLevels" 
+              :key="diff.value"
+              :class="['difficulty-tab', { active: selectedDifficulty === diff.value }]"
+              @click="selectedDifficulty = diff.value"
+            >
+              {{ diff.label }}
+            </button>
+          </div>
+
+          <!-- 加载中状态 -->
+          <div v-if="loading" class="loading-container">
+            <div class="loading-spinner"></div>
+            <p>加载中...</p>
+          </div>
+
+          <!-- 排行榜列表 -->
+          <div v-else-if="currentLeaderboard.length > 0" class="leaderboard-list">
+            <div class="leaderboard-item" v-for="user in currentLeaderboard" :key="user.userId">
+              <div class="rank" :class="getRankClass(user.rank)">{{ user.rank }}</div>
+              <div class="user-info">
+                <div class="avatar">{{ getAvatarEmoji(user.rank) }}</div>
+                <div class="user-details">
+                  <span class="username">{{ user.username }}</span>
+                  <span class="score">
+                    {{ user.score }}分 
+                    <span class="time-info">({{ formatTime(user.timeSpent) }})</span>
+                  </span>
+                </div>
               </div>
+              <div class="badge">{{ getBadgeTitle(user.score) }}</div>
             </div>
-            <div class="badge">{{ user.title }}</div>
+          </div>
+
+          <!-- 暂无数据 -->
+          <div v-else class="empty-state">
+            <div class="empty-icon">🏆</div>
+            <p>暂无排行榜数据</p>
+            <p class="empty-hint">快来成为第一个上榜的人吧！</p>
           </div>
         </div>
 
@@ -84,17 +115,48 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 
 interface Props {
   show: boolean
   type: string
 }
 
+interface LeaderboardUser {
+  rank: number | string
+  userId: number
+  username: string
+  totalQuestions: number
+  correctAnswers: number
+  score: number
+  timeSpent: number
+  submittedAt: string
+}
+
+interface LeaderboardData {
+  beginner: LeaderboardUser[]
+  intermediate: LeaderboardUser[]
+  advanced: LeaderboardUser[]
+}
+
 const props = defineProps<Props>()
 const emit = defineEmits<{
   'close': []
 }>()
+
+const selectedDifficulty = ref<'beginner' | 'intermediate' | 'advanced'>('beginner')
+const loading = ref(false)
+const leaderboardData = ref<LeaderboardData>({
+  beginner: [],
+  intermediate: [],
+  advanced: []
+})
+
+const difficultyLevels = [
+  { value: 'beginner' as const, label: '初级 (10题)' },
+  { value: 'intermediate' as const, label: '中级 (20题)' },
+  { value: 'advanced' as const, label: '高级 (25题)' }
+]
 
 const modalTitle = computed(() => {
   const titles: Record<string, string> = {
@@ -105,13 +167,80 @@ const modalTitle = computed(() => {
   return titles[props.type] || ''
 })
 
-const topUsers = [
-  { name: '文化传承者', score: 98, avatar: '🏆', title: '非遗大师' },
-  { name: '诗词达人', score: 94, avatar: '🥈', title: '文化学者' },
-  { name: '古韵青年', score: 89, avatar: '🥉', title: '传承新星' },
-  { name: '江南雅士', score: 85, avatar: '📚', title: '文化爱好者' },
-  { name: '匠心独运', score: 82, avatar: '🎨', title: '文化爱好者' }
-]
+const currentLeaderboard = computed(() => {
+  return leaderboardData.value[selectedDifficulty.value] || []
+})
+
+// 获取排行榜数据
+const fetchLeaderboard = async () => {
+  loading.value = true
+  try {
+    const response = await fetch('/api/leaderboard')
+    const data = await response.json()
+    
+    console.log('📊 排行榜API响应:', data)
+    
+    if (data.success) {
+      leaderboardData.value = data.data
+      console.log('✅ 排行榜数据已加载:', leaderboardData.value)
+      console.log('当前难度数据:', currentLeaderboard.value)
+    } else {
+      console.error('❌ API返回失败:', data)
+    }
+  } catch (error) {
+    console.error('❌ 获取排行榜失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 格式化时间（秒转为分秒）
+const formatTime = (seconds: number): string => {
+  const minutes = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return minutes > 0 ? `${minutes}分${secs}秒` : `${secs}秒`
+}
+
+// 获取排名样式类
+const getRankClass = (rank: number | string): string => {
+  const r = typeof rank === 'string' ? parseInt(rank) : rank
+  if (r === 1) return 'rank-gold'
+  if (r === 2) return 'rank-silver'
+  if (r === 3) return 'rank-bronze'
+  return ''
+}
+
+// 获取头像表情
+const getAvatarEmoji = (rank: number | string): string => {
+  const r = typeof rank === 'string' ? parseInt(rank) : rank
+  if (r === 1) return '🏆'
+  if (r === 2) return '🥈'
+  if (r === 3) return '🥉'
+  return '👤'
+}
+
+// 获取徽章标题
+const getBadgeTitle = (score: number): string => {
+  if (score >= 90) return '非遗大师'
+  if (score >= 80) return '文化学者'
+  if (score >= 70) return '传承新星'
+  if (score >= 60) return '文化爱好者'
+  return '学习者'
+}
+
+// 监听弹窗显示状态
+watch(() => props.show, (newVal) => {
+  if (newVal && props.type === 'leaderboard') {
+    fetchLeaderboard()
+  }
+})
+
+// 组件挂载时如果是排行榜类型则加载数据
+onMounted(() => {
+  if (props.show && props.type === 'leaderboard') {
+    fetchLeaderboard()
+  }
+})
 </script>
 
 <style scoped>
@@ -245,7 +374,67 @@ const topUsers = [
 .leaderboard-modal-content {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+}
+
+.difficulty-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 20px 20px 0 20px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.difficulty-tab {
+  flex: 1;
+  padding: 12px 24px;
+  background: #f5f5f5;
+  border: none;
+  border-radius: 8px 8px 0 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.difficulty-tab:hover {
+  background: #e8e8e8;
+  color: #333;
+}
+
+.difficulty-tab.active {
+  background: linear-gradient(135deg, #d4a574 0%, #c9916f 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(212, 165, 116, 0.3);
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #999;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #d4a574;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.leaderboard-list {
+  padding: 20px;
+  max-height: 500px;
+  overflow-y: auto;
 }
 
 .leaderboard-modal-content .leaderboard-item {
@@ -255,11 +444,14 @@ const topUsers = [
   padding: 15px;
   background: #fafafa;
   border-radius: 10px;
-  transition: background 0.3s;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  margin-bottom: 12px;
 }
 
 .leaderboard-modal-content .leaderboard-item:hover {
-  background: #f0f0f0;
+  background: #f5e6d3;
+  transform: translateX(4px);
 }
 
 .leaderboard-modal-content .rank {
@@ -273,6 +465,22 @@ const topUsers = [
   justify-content: center;
   font-weight: bold;
   font-size: 1em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.rank-gold {
+  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+}
+
+.rank-silver {
+  background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%);
+  box-shadow: 0 4px 12px rgba(192, 192, 192, 0.4);
+}
+
+.rank-bronze {
+  background: linear-gradient(135deg, #cd7f32 0%, #e6a857 100%);
+  box-shadow: 0 4px 12px rgba(205, 127, 50, 0.4);
 }
 
 .leaderboard-modal-content .user-info {
@@ -300,6 +508,14 @@ const topUsers = [
 .leaderboard-modal-content .score {
   color: #c9916f;
   font-size: 0.95em;
+  font-weight: 600;
+}
+
+.time-info {
+  font-size: 0.85em;
+  color: #999;
+  font-weight: 400;
+  margin-left: 8px;
 }
 
 .leaderboard-modal-content .badge {
@@ -309,6 +525,31 @@ const topUsers = [
   border-radius: 12px;
   font-size: 0.85em;
   font-weight: bold;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  color: #999;
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-state p {
+  margin: 8px 0;
+  font-size: 16px;
+}
+
+.empty-hint {
+  font-size: 14px;
+  color: #bbb;
 }
 
 /* 社区弹窗内容 */
