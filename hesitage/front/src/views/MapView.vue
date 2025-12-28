@@ -142,6 +142,7 @@ function resetMap() {
 
 <style scoped>
 .map-view-container {
+  min-width: 1400px;
   width: 100%;
   height: 100vh;
   display: flex;
