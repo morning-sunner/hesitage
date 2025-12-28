@@ -19,29 +19,40 @@
       <div class="main-content">
         <!-- 中部三大板块轮播 -->
         <div class="middle-carousel-section">
-          <div class="carousel-container" ref="carouselContainer">
+          <div class="carousel-container">
             <!-- 轮播箭头按钮 -->
             <button class="carousel-btn left-btn" @click="prevPanel">❮</button>
             <button class="carousel-btn right-btn" @click="nextPanel">❯</button>
-            
+
             <!-- 轮播轨道 -->
-            <div class="carousel-track" :style="{ transform: `translateX(-${currentIndex * 100}%)` }">
-              <!-- 面板1：非遗传承人 -->
+            <div
+              class="carousel-track"
+              :style="{ transform: `translateX(-${currentIndex * 100}%)` }"
+            >
+              <!-- 面板1：非遗传承人（专题入口面板） -->
               <div class="carousel-panel">
-                <div class="panel-content">
+                <div
+                  class="panel-content inheritor-panel"
+                  @click="goToInheritorOverview"
+                >
                   <h3 class="panel-title">非遗传承人</h3>
-                  <div class="items-grid">
-                    <div
-                      v-for="person in inheritors"
-                      :key="person.id"
-                      class="panel-item"
-                    >
-                      <div class="item-content">
-                        <div class="item-icon">👨‍🎨</div>
-                        <h4>{{ person.name }}</h4>
-                        <p>{{ person.heritage }}</p>
-                      </div>
-                    </div>
+
+                  <!-- 综述文字 -->
+                  <div class="inheritor-summary">
+                    <p>
+                      非遗传承人是非物质文化遗产活态延续的核心主体，
+                      他们以技艺、记忆与实践，将传统文化在当代社会中不断传递。
+                    </p>
+                    <p>
+                      长三角地区汇聚了众多国家级、省级代表性传承人，
+                      覆盖戏曲、手工技艺、民俗、医药与饮食文化等多个领域，
+                      构成了中国非遗保护与传承的重要实践区域。
+                    </p>
+                  </div>
+
+                  <!-- 明确的入口提示 -->
+                  <div class="enter-hint">
+                    点击进入非遗传承人专题 →
                   </div>
                 </div>
               </div>
@@ -65,7 +76,7 @@
                   </div>
                 </div>
               </div>
-              
+
               <!-- 面板3：相关影视 -->
               <div class="carousel-panel">
                 <div class="panel-content">
@@ -86,11 +97,11 @@
                 </div>
               </div>
             </div>
-            
+
             <!-- 轮播指示器 -->
             <div class="carousel-indicators">
               <button
-                v-for="(panel, index) in 3"
+                v-for="(_, index) in 3"
                 :key="index"
                 class="indicator"
                 :class="{ active: currentIndex === index }"
@@ -102,7 +113,6 @@
 
         <!-- 下部三列展示 -->
         <div class="bottom-section">
-          <!-- 热播影视 -->
           <div class="content-column">
             <h3 class="column-title">热播影视</h3>
             <ul class="content-list">
@@ -113,7 +123,6 @@
             </ul>
           </div>
 
-          <!-- 热读书籍 -->
           <div class="content-column">
             <h3 class="column-title">热读书籍</h3>
             <ul class="content-list">
@@ -124,7 +133,6 @@
             </ul>
           </div>
 
-          <!-- 热门人物 -->
           <div class="content-column">
             <h3 class="column-title">热门人物</h3>
             <ul class="content-list">
@@ -142,105 +150,87 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
 
-// 当前轮播索引
+/* ===== 新增：router（最小侵入） ===== */
+const router = useRouter()
+
+/* ===== 原有逻辑不变 ===== */
 const currentIndex = ref(0)
 
-// 轮播控制
 const nextPanel = () => {
   currentIndex.value = (currentIndex.value + 1) % 3
 }
-
 const prevPanel = () => {
   currentIndex.value = (currentIndex.value - 1 + 3) % 3
 }
-
 const goToPanel = (index: number) => {
   currentIndex.value = index
 }
 
-// 自动轮播
+/* ===== 自动轮播保持不变 ===== */
 let autoScrollInterval: ReturnType<typeof setInterval>
 
 const startAutoScroll = () => {
-  autoScrollInterval = setInterval(() => {
-    nextPanel()
-  }, 5000)
+  autoScrollInterval = setInterval(nextPanel, 5000)
 }
-
 const stopAutoScroll = () => {
-  if (autoScrollInterval) {
-    clearInterval(autoScrollInterval)
-  }
+  clearInterval(autoScrollInterval)
 }
 
-// 非遗传承人
-const inheritors = ref([
-  { id: 1, name: '张三', heritage: '昆曲' },
-  { id: 2, name: '李四', heritage: '皮影戏' },
-  { id: 3, name: '王五', heritage: '剪纸' },
-  { id: 4, name: '赵六', heritage: '陶瓷' },
-  { id: 5, name: '钱七', heritage: '刺绣' },
-  { id: 6, name: '孙八', heritage: '书法' },
-  { id: 7, name: '周九', heritage: '茶艺' },
-])
+/* ===== 数据保持不变 ===== */
+/* ===== 非遗传承人专题入口 ===== */
+const goToInheritorOverview = () => {
+  router.push({
+    path: '/Content',
+  })
+}
 
-// 相关书籍
 const books = ref([
   { id: 1, title: '非遗保护的理论探讨' },
   { id: 2, title: '手艺人：湖南失的江南医学' },
   { id: 3, title: '非物质文化遗产论' },
   { id: 4, title: '江苏国家级非遗的文化遗产概览' },
-  { id: 5, title: '非遗的活态传承与社区实践' },
+  { id: 5, title: '非遗的活态传承与社区实践' }
 ])
 
-// 相关影视
 const videos = ref([
   { id: 1, title: '我在故宫修文物', director: '纪录片' },
   { id: 2, title: '下町的匠人', director: '纪录片' },
   { id: 3, title: '中国手作', director: '纪录片' },
   { id: 4, title: '传承', director: '纪录片' },
   { id: 5, title: '曲曲人百艺', director: '纪录片' },
-  { id: 6, title: '天工开物', director: '纪录片' },
+  { id: 6, title: '天工开物', director: '纪录片' }
 ])
 
-// 热播影视
 const hotVideos = ref([
   { id: 1, title: '我在故宫修文物' },
   { id: 2, title: '下町的匠人' },
   { id: 3, title: '中国手作' },
   { id: 4, title: '传承' },
-  { id: 5, title: '曲曲人百艺' },
+  { id: 5, title: '曲曲人百艺' }
 ])
 
-// 热读书籍
 const hotBooks = ref([
   { id: 1, title: '非遗保护的理论探讨' },
   { id: 2, title: '手艺人：湖南失的江南医学' },
   { id: 3, title: '非物质文化遗产论' },
   { id: 4, title: '江苏国家级非遗的文化遗产概览' },
-  { id: 5, title: '非遗的活态传承与社区实践' },
+  { id: 5, title: '非遗的活态传承与社区实践' }
 ])
 
-// 热门人物
 const hotPeople = ref([
   { id: 1, name: '干茜' },
   { id: 2, name: '周笑燕' },
   { id: 3, name: '王屹文' },
   { id: 4, name: '王杨兴' },
   { id: 5, name: '汪美丽' },
-  { id: 6, name: '姚建茗' },
+  { id: 6, name: '姚建茗' }
 ])
 
-// 生命周期
-onMounted(() => {
-  startAutoScroll()
-})
-
-onUnmounted(() => {
-  stopAutoScroll()
-})
+onMounted(startAutoScroll)
+onUnmounted(stopAutoScroll)
 </script>
 
 <style scoped>
@@ -484,6 +474,41 @@ onUnmounted(() => {
   background: linear-gradient(135deg, #d4a574, #c8956a);
   transform: scale(1.3);
 }
+/* 非遗传承人专题面板 */
+.inheritor-panel {
+  cursor: pointer;
+  transition: all 0.35s ease;
+}
+
+.inheritor-panel:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 16px 40px rgba(139, 90, 43, 0.22);
+}
+
+/* 综述文字 */
+.inheritor-summary {
+  max-width: 720px;
+  margin: 0 auto;
+  font-size: 15px;
+  line-height: 1.9;
+  color: #5a4f45;
+  text-align: center;
+}
+
+.inheritor-summary p {
+  margin-bottom: 14px;
+}
+
+/* 进入提示 */
+.enter-hint {
+  margin-top: 30px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #8b5a2b;
+  letter-spacing: 1px;
+}
+
+
 
 /* 下部三列展示 */
 .bottom-section {
