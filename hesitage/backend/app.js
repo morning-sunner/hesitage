@@ -15,7 +15,11 @@ var spatialRouter = require('./routes/spatial');
 var statisticsRouter = require('./routes/statistics');
 var apiRouter = require('./routes/api');
 
+var supportRouter = require('./routes/support');
+
+
 var app = express();
+
 
 // CORS 中间件
 app.use((req, res, next) => {
@@ -47,6 +51,9 @@ app.use('/api/spatial', spatialRouter);
 app.use('/api/statistics', statisticsRouter);
 app.use('/api', apiRouter);
 
+app.use('/api/support', supportRouter);
+
+
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
   next(createError(404));
@@ -62,5 +69,6 @@ app.use(function(err, req, res, next) {
   res.status(err.status || 500);
   res.render('error');
 });
+
 
 module.exports = app;

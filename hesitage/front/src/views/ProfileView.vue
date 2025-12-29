@@ -59,8 +59,6 @@
                 />
               </svg>
               用户名
-              <!-- ✅ 用户名一直公开 -->
-              <span class="vis-tag">公开</span>
             </div>
             <div class="profile-content">
               <input v-model="username" type="text" class="profile-input" placeholder="请输入用户名" />
@@ -75,7 +73,6 @@
                 />
               </svg>
               性别
-              <span class="vis-tag" :class="{ off: !isInfoPublic }">{{ isInfoPublic ? '公开' : '不公开' }}</span>
             </div>
             <div class="profile-content">
               <select v-model="gender" class="profile-input">
@@ -95,7 +92,6 @@
                 />
               </svg>
               生日
-              <span class="vis-tag" :class="{ off: !isInfoPublic }">{{ isInfoPublic ? '公开' : '不公开' }}</span>
             </div>
             <div class="profile-content">
               <input v-model="birthday" type="date" class="profile-input" />
@@ -110,7 +106,6 @@
                 />
               </svg>
               邮箱
-              <span class="vis-tag" :class="{ off: !isInfoPublic }">{{ isInfoPublic ? '公开' : '不公开' }}</span>
             </div>
             <div class="profile-content">
               <input v-model="userEmail" type="email" class="profile-input" placeholder="请输入邮箱" />
@@ -123,7 +118,6 @@
                 <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z" />
               </svg>
               个人简介
-              <span class="vis-tag" :class="{ off: !isInfoPublic }">{{ isInfoPublic ? '公开' : '不公开' }}</span>
             </div>
             <div class="profile-content">
               <textarea
@@ -153,39 +147,6 @@ const route = useRoute()
 const router = useRouter()
 const activeTab = computed(() => route.path)
 
-/** ✅ 隐私状态（从 localStorage 读取） */
-type ProfileVisibility = 'public' | 'private'
-type PrivacyState = {
-  visibility: ProfileVisibility
-  showInfo: boolean
-  showFavorites: boolean
-  showLocation: boolean
-}
-
-function readPrivacy(): PrivacyState {
-  const visibility = ((localStorage.getItem('privacy_profile_visibility') as ProfileVisibility) || 'public')
-  const isPrivate = visibility === 'private'
-
-  const showInfo = !isPrivate && (localStorage.getItem('privacy_show_info') ?? '1') === '1'
-  const showFavorites = !isPrivate && (localStorage.getItem('privacy_show_favorites') ?? '1') === '1'
-  const showLocation = !isPrivate && (localStorage.getItem('privacy_show_location') ?? '1') === '1'
-
-  return { visibility, showInfo, showFavorites, showLocation }
-}
-
-const privacy = ref<PrivacyState>(readPrivacy())
-function syncPrivacy(_e?: Event) {
-  privacy.value = readPrivacy()
-}
-function onStorage(e: StorageEvent) {
-  if (!e.key) return
-  if (e.key.startsWith('privacy_')) syncPrivacy()
-}
-
-/** ✅ “公开我的信息”总开关（私密=全部不公开） */
-const isInfoPublic = computed(() => privacy.value.visibility === 'public' && privacy.value.showInfo)
-
-/** ✅ 与收藏页一致：仅本页解除 #app 的 max-width/padding 限制 */
 const APP_CLASS = 'app-full-bleed'
 const BODY_CLASS = 'profile-full-bleed'
 function enableFullBleed() {
@@ -253,17 +214,10 @@ onMounted(() => {
   username.value = localStorage.getItem('userName') || ''
   userEmail.value = localStorage.getItem(LS_EMAIL_KEY) || ''
   avatarUrl.value = localStorage.getItem(LS_AVATAR_KEY) || ''
-
-  // ✅ 同步隐私设置（支持设置页保存后立刻刷新本页）
-  syncPrivacy()
-  window.addEventListener('storage', onStorage)
-  window.addEventListener('privacy-updated', syncPrivacy as EventListener)
 })
 
 onBeforeUnmount(() => {
   disableFullBleed()
-  window.removeEventListener('storage', onStorage)
-  window.removeEventListener('privacy-updated', syncPrivacy as EventListener)
 })
 
 function goHome() {
@@ -541,7 +495,6 @@ function onCancel() {
   .nav-item { font-size: 12px; gap: 2px; padding: 10px 4px; }
 }
 
-/* 白底主体外壳：与收藏页一致 */
 .page-shell {
   width: min(1680px, 96vw);
   margin: 0 auto 60px;
@@ -550,7 +503,12 @@ function onCancel() {
   border-radius: 22px;
   box-shadow: 0 18px 40px rgba(0,0,0,0.08);
   padding: 20px 18px 24px;
+  min-height: calc(100vh - 190px - 62px - 60px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+
 
 /* ✅ 表单部分：保留你原来的“居中且不太宽” */
 .profile-container {
@@ -646,23 +604,6 @@ function onCancel() {
   border-color: rgba(224, 208, 184, 0.95);
 }
 .cancel-btn:hover { background: rgba(230, 200, 155, 0.92); transform: translateY(-2px); }
-
-/* ✅ 新增：公开/不公开小标签（不抢主视觉） */
-.vis-tag {
-  margin-left: 8px;
-  font-size: 12px;
-  font-weight: 650;
-  padding: 2px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(224, 208, 184, 0.95);
-  background: rgba(240, 230, 214, 0.55);
-  color: rgba(93, 64, 55, 0.9);
-  line-height: 1.4;
-}
-.vis-tag.off {
-  background: rgba(0, 0, 0, 0.03);
-  color: rgba(0, 0, 0, 0.45);
-}
 
 /* 响应式：与收藏页口径对齐 */
 @media (max-width: 720px) {

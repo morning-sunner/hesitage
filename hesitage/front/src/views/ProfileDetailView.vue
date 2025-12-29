@@ -212,16 +212,13 @@ async function initMap() {
       mapInstance.addControl(new AMap.ToolBar())
       mapInstance.addControl(new AMap.Scale())
     })
-  } catch (e) {
+  } catch {
     mapError.value = true
   }
 }
 
-onMounted(() => {
-  initMap()
-})
+onMounted(() => initMap())
 
-/** ✅ 切换不同详情时，地图中心也跟着更新 */
 watch(
   () => detail.value.center,
   () => initMap(),
@@ -244,7 +241,6 @@ function devSoon() {
 </script>
 
 <style scoped>
-/* ✅ 全屏铺满 + 关键：isolation 让背景伪元素不会掉到 body 后面 */
 .detail-page {
   font-family: "微软雅黑", sans-serif;
   line-height: 1.8;
@@ -253,7 +249,7 @@ function devSoon() {
 
   width: 100vw;
   position: relative;
-  isolation: isolate; /* ✅ 关键 */
+  isolation: isolate;
   overflow-x: hidden;
 
   left: 50%;
@@ -262,15 +258,11 @@ function devSoon() {
   margin-right: -50vw;
 }
 
-/* ✅ 背景图层：固定 + 轻微虚化（更“高级”但不会糊） */
 .detail-page::before {
   content: '';
   position: fixed;
   inset: 0;
-  background-image: url('/figures/bg-header.jpg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background: url('/figures/bg-header.jpg') center / cover no-repeat;
 
   transform: scale(1.04);
   filter: blur(1.2px) saturate(1.02);
@@ -280,12 +272,10 @@ function devSoon() {
   pointer-events: none;
 }
 
-/* ✅ 遮罩层：降低不透明度（你之前看不到背景就是“遮罩太厚/层级掉下去”） */
 .detail-page::after {
   content: '';
   position: fixed;
   inset: 0;
-
   background:
     radial-gradient(ellipse at 18% 8%,
       rgba(255,255,255,0.45) 0%,
@@ -295,12 +285,10 @@ function devSoon() {
       rgba(245,242,234,0.18) 0%,
       rgba(245,242,234,0.50) 55%,
       rgba(245,242,234,0.68) 100%);
-
   z-index: -1;
   pointer-events: none;
 }
 
-/* ✅ 顶部导航栏：sticky + 玻璃感 */
 .top-nav {
   position: sticky;
   top: 0;
@@ -405,20 +393,19 @@ function devSoon() {
 }
 
 .detail-container {
-  width: min(1400px, 96vw);     /* 原来 1200/94vw，改大一点 */
+  width: min(1400px, 96vw);
   margin: 22px auto;
 
-  background: rgba(255, 248, 235, 0.62);  /* 更透明（数值越小越透明） */
+  background: rgba(255, 248, 235, 0.62);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 
   border-radius: 16px;
-  padding: 34px;               /* 内边距更大，整体更“阔” */
+  padding: 34px;
   box-shadow: 0 14px 34px rgba(0,0,0,0.10);
   border: 1px solid rgba(230, 200, 155, 0.50);
 }
 
-/* ✅ 标题行 + 返回按钮 */
 .detail-header {
   display: flex;
   align-items: center;
@@ -435,7 +422,6 @@ function devSoon() {
 }
 
 .detail-title {
-  margin: 0;
   font-size: 20px;
   font-weight: bold;
   color: #8b4513;
@@ -469,7 +455,6 @@ function devSoon() {
   line-height: 1;
 }
 
-/* 内容布局 */
 .detail-content {
   display: flex;
   gap: 30px;
@@ -519,8 +504,8 @@ function devSoon() {
   color: #3a2618;
   flex: 1;
 
-  padding: 14px 18px;                 /* 更厚一点，显得更高级 */
-  background: rgba(252, 251, 199, 0.30); /* 透明度： 0.62 */
+  padding: 14px 18px;
+  background: rgba(252, 251, 199, 0.30);
   border-radius: 12px;
   border: 1px solid rgba(230, 200, 155, 0.28);
 }
@@ -542,8 +527,8 @@ function devSoon() {
 
 .map-img {
   width: 100%;
-  max-width: 760px;   /* 原来 560，改大 */
-  height: 320px;      /* 稍微加高一点更舒服 */
+  max-width: 760px;
+  height: 320px;
   border-radius: 12px;
   border: 1px solid rgba(230, 200, 155, 0.8);
   box-shadow: 0 10px 22px rgba(0,0,0,0.10);
@@ -556,7 +541,6 @@ function devSoon() {
   font-size: 13px;
 }
 
-/* 响应式 */
 @media (max-width: 768px) {
   .detail-content {
     flex-direction: column;
