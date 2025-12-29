@@ -115,8 +115,9 @@
           <el-pagination
             v-model:current-page="currentPage"
             :page-size="pageSize"
-            :total="filteredItems.length"
+            :total="total"
             layout="prev, pager, next"
+            @current-change="fetchHeritageItems"
           />
         </div>
       </div>
@@ -140,8 +141,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import NavBar from '../components/NavBar.vue'
+import { api } from '../utils/api'
 
 // 数据
 const searchQuery = ref('')
@@ -153,165 +156,96 @@ const pageSize = ref(9)
 const showDetail = ref(false)
 const selectedItem = ref<any>(null)
 const expandedProvinces = ref<string[]>([])
+const heritageItems = ref<any[]>([])
+const total = ref(0)
+const loading = ref(false)
 
 const provinces = ref([
   { id: 'all', name: '全部地区', count: 500 },
-  { id: 'jiangsu', name: '江苏', count: 134 },
-  { id: 'zhejiang', name: '浙江', count: 102 },
-  { id: 'shanghai', name: '上海', count: 35 },
-  { id: 'anhui', name: '安徽', count: 89 },
+  { id: '江苏', name: '江苏', count: 134 },
+  { id: '浙江', name: '浙江', count: 102 },
+  { id: '上海', name: '上海', count: 35 },
+  { id: '安徽', name: '安徽', count: 89 },
 ])
 
 // 地级市数据
 const citiesByProvince = ref<Record<string, string[]>>({
-  jiangsu: ['南通', '常州', '镇江', '扬州', '泰州', '徐州', '连云港', '淮安', '苏州', '无锡'],
-  zhejiang: ['杭州', '宁波', '温州', '嘉兴', '湖州', '绍兴', '金华', '衢州', '舟山', '台州'],
-  shanghai: ['黄浦', '静安', '徐汇', '长宁', '普陀', '虹口', '杨浦', '浦东'],
-  anhui: ['合肥', '芜湖', '马鞍山', '安庆', '黄山', '阜阳', '六安', '亳州', '池州', '宣城'],
+  '江苏': ['南通', '常州', '镇江', '扬州', '泰州', '徐州', '连云港', '淮安', '苏州', '无锡'],
+  '浙江': ['杭州', '宁波', '温州', '嘉兴', '湖州', '绍兴', '金华', '衢州', '舟山', '台州'],
+  '上海': ['黄浦', '静安', '徐汇', '长宁', '普陀', '虹口', '杨浦', '浦东'],
+  '安徽': ['合肥', '芜湖', '马鞍山', '安庆', '黄山', '阜阳', '六安', '亳州', '池州', '宣城'],
 })
 
 const heritageclasses = ref([
-  { id: '1', name: '民间文学' },
-  { id: '2', name: '说唱艺曲' },
-  { id: '3', name: '体育游艺' },
-  { id: '4', name: '传统技艺' },
-  { id: '5', name: '工艺美术' },
-  { id: '6', name: '传统医药' },
-  { id: '7', name: '民俗' },
-  { id: '8', name: '传统戏剧' },
-  { id: '9', name: '音乐舞蹈' },
-  { id: '10', name: '风俗节庆' },
+  { id: '民间文学', name: '民间文学' },
+  { id: '说唱艺曲', name: '说唱艺曲' },
+  { id: '体育游艺', name: '体育游艺' },
+  { id: '传统技艺', name: '传统技艺' },
+  { id: '工艺美术', name: '工艺美术' },
+  { id: '传统医药', name: '传统医药' },
+  { id: '民俗', name: '民俗' },
+  { id: '传统戏剧', name: '传统戏剧' },
+  { id: '音乐舞蹈', name: '音乐舞蹈' },
+  { id: '风俗节庆', name: '风俗节庆' },
 ])
 
-// 示例数据
-const heritageItems = ref([
-  {
-    id: 1,
-    name: '昆曲',
-    category: '传统戏剧',
-    location: '江苏',
-    city: '苏州',
-    image: 'https://via.placeholder.com/300x300?text=昆曲',
-    description: '昆曲是中国古老的戏曲剧种，代表了中国传统戏曲的高峰。',
-    significance: '世界非物质文化遗产，中国传统文化的重要组成部分。',
-  },
-  {
-    id: 2,
-    name: '苏州园林',
-    category: '传统建筑',
-    location: '江苏',
-    city: '苏州',
-    image: 'https://via.placeholder.com/300x300?text=苏州园林',
-    description: '苏州园林以其精妙的布局和优雅的设计而闻名。',
-    significance: '世界文化遗产，中国古典园林艺术的典范。',
-  },
-  {
-    id: 3,
-    name: '杭州丝绸',
-    category: '工艺美术',
-    location: '浙江',
-    city: '杭州',
-    image: 'https://via.placeholder.com/300x300?text=杭州丝绸',
-    description: '杭州丝绸以其精美的工艺和高级的品质享誉世界。',
-    significance: '中国传统工艺的杰出代表。',
-  },
-  {
-    id: 4,
-    name: '宣纸制作',
-    category: '传统技艺',
-    location: '安徽',
-    city: '宣城',
-    image: 'https://via.placeholder.com/300x300?text=宣纸',
-    description: '宣纸是中国传统纸张，以其独特的品质闻名。',
-    significance: '中国文化遗产，传统手工艺的代表。',
-  },
-  {
-    id: 5,
-    name: '景德镇瓷器',
-    category: '工艺美术',
-    location: '江西',
-    city: '景德镇',
-    image: 'https://via.placeholder.com/300x300?text=景德镇瓷器',
-    description: '景德镇瓷器以其精美的设计和高超的工艺而著称。',
-    significance: '中国古代四大发明之一，世界非遗。',
-  },
-  {
-    id: 6,
-    name: '越剧',
-    category: '传统戏剧',
-    location: '浙江',
-    city: '绍兴',
-    image: 'https://via.placeholder.com/300x300?text=越剧',
-    description: '越剧是浙江地方戏曲，以其唯美的表演著称。',
-    significance: '中国传统戏剧艺术的重要分支。',
-  },
-  {
-    id: 7,
-    name: '徽墨制作',
-    category: '传统技艺',
-    location: '安徽',
-    city: '黄山',
-    image: 'https://via.placeholder.com/300x300?text=徽墨',
-    description: '徽墨是中国传统制墨工艺的瑰宝。',
-    significance: '中国传统"文房四宝"的重要组成。',
-  },
-  {
-    id: 8,
-    name: '上海绒绣',
-    category: '工艺美术',
-    location: '上海',
-    city: '浦东',
-    image: 'https://via.placeholder.com/300x300?text=绒绣',
-    description: '上海绒绣以其独特的针法和精美的表现力而著称。',
-    significance: '中国民间手工艺的杰作。',
-  },
-  {
-    id: 9,
-    name: '江南民间音乐',
-    category: '音乐舞蹈',
-    location: '江苏',
-    city: '无锡',
-    image: 'https://via.placeholder.com/300x300?text=江南民间音乐',
-    description: '江南地区丰富的民间音乐文化。',
-    significance: '中国民间音乐的重要遗产。',
-  },
-  {
-    id: 10,
-    name: '苏州评弹',
-    category: '说唱艺曲',
-    location: '江苏',
-    city: '苏州',
-    image: 'https://via.placeholder.com/300x300?text=苏州评弹',
-    description: '苏州评弹是中国传统说唱艺术的瑰宝。',
-    significance: '国家级非物质文化遗产。',
-  },
-  {
-    id: 11,
-    name: '龙泉青瓷',
-    category: '工艺美术',
-    location: '浙江',
-    city: '丽水',
-    image: 'https://via.placeholder.com/300x300?text=龙泉青瓷',
-    description: '龙泉青瓷以其深沉的颜色和精美的工艺而闻名。',
-    significance: '中国古代瓷器的经典代表。',
-  },
-  {
-    id: 12,
-    name: '西湖龙井茶',
-    category: '民俗',
-    location: '浙江',
-    city: '杭州',
-    image: 'https://via.placeholder.com/300x300?text=龙井茶',
-    description: '西湖龙井茶是中国最著名的茶叶之一。',
-    significance: '中国传统饮茶文化的重要代表。',
-  },
-])
+// 获取非遗项目数据
+const fetchHeritageItems = async () => {
+  try {
+    loading.value = true
+    const params = {
+      limit: pageSize.value,
+      offset: (currentPage.value - 1) * pageSize.value
+    }
+    
+    // 添加过滤参数
+    if (selectedProvince.value !== 'all') {
+      params.province = selectedProvince.value
+    }
+    if (selectedClass.value) {
+      params.category = selectedClass.value
+    }
+    if (searchQuery.value) {
+      params.search = searchQuery.value
+    }
+    
+    const response = await api.get('/heritage', { params })
+    
+    if (response.data.success) {
+      // 转换数据格式以适应现有的模板
+      heritageItems.value = response.data.data.map((item: any) => ({
+        id: item.name_cn,
+        name: item.name_cn,
+        category: item.categorycn || '未分类',
+        location: item.place_merged || '未知',
+        province: item.provincecn,
+        image: item.image_url || 'https://via.placeholder.com/300x300?text=暂无图片',
+        description: item.intro || '暂无描述',
+        significance: '国家级非物质文化遗产',
+        latitude: item.y,
+        longitude: item.x
+      }))
+      total.value = response.data.total
+    } else {
+      ElMessage.error('加载数据失败')
+    }
+  } catch (error) {
+    console.error('获取数据错误:', error)
+    ElMessage.error('加载数据失败，请重试')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 初始加载
+onMounted(() => {
+  fetchHeritageItems()
+})
 
 const topTags = computed(() => {
   const tags = []
   if (selectedProvince.value !== 'all') {
-    const province = provinces.value.find((p) => p.id === selectedProvince.value)
-    if (province) tags.push(`地区：${province.name}`)
+    tags.push(`地区：${selectedProvince.value}`)
   }
   if (selectedCity.value) {
     tags.push(`城市：${selectedCity.value}`)
@@ -326,42 +260,15 @@ const topTags = computed(() => {
   return tags
 })
 
-// 过滤数据
-const filteredItems = computed(() => {
-  return heritageItems.value.filter((item) => {
-    // 按地区过滤
-    if (selectedProvince.value !== 'all' && item.location !== provinces.value.find((p) => p.id === selectedProvince.value)?.name) {
-      return false
-    }
-    // 按城市过滤
-    if (selectedCity.value && item.city !== selectedCity.value) {
-      return false
-    }
-    // 按分类过滤
-    if (selectedClass.value) {
-      const selectedClassName = heritageclasses.value.find((c) => c.id === selectedClass.value)?.name
-      if (!item.category.includes(selectedClassName || '')) {
-        return false
-      }
-    }
-    // 按搜索词过滤
-    if (searchQuery.value && !item.name.toLowerCase().includes(searchQuery.value.toLowerCase())) {
-      return false
-    }
-    return true
-  })
-})
-
-// 分页数据
+// 分页数据 - 由于数据从 API 获取，已经分页，直接使用
 const paginatedItems = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  const end = start + pageSize.value
-  return filteredItems.value.slice(start, end)
+  return heritageItems.value
 })
 
 // 方法
 const handleSearch = () => {
   currentPage.value = 1
+  fetchHeritageItems()
 }
 
 const removeTopTag = (tag: string) => {
@@ -375,6 +282,8 @@ const removeTopTag = (tag: string) => {
   } else if (tag.startsWith('搜索：')) {
     searchQuery.value = ''
   }
+  currentPage.value = 1
+  fetchHeritageItems()
 }
 
 const selectItem = (item: any) => {
@@ -391,6 +300,7 @@ const toggleProvince = (provinceId: string) => {
     selectedCity.value = ''
   }
   currentPage.value = 1
+  fetchHeritageItems()
 }
 </script>
 
