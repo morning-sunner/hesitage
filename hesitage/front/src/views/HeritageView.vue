@@ -29,10 +29,7 @@
         <div class="category-list">
           <div class="category-title">按地区分类</div>
           <div class="category-scroll">
-            <div
-              v-for="province in provinces"
-              :key="province.id"
-            >
+            <div v-for="province in provinces" :key="province.id">
               <!-- 省份项 -->
               <div
                 :class="['category-item', { active: selectedProvince === province.id }]"
@@ -45,8 +42,11 @@
                 <span class="category-count">{{ province.count }}</span>
               </div>
 
-              <!-- 地级市子项 - 紧贴在省份下方 -->
-              <div v-if="selectedProvince === province.id && citiesByProvince[province.id]" class="cities-list">
+              <!-- 地级市子项 -->
+              <div
+                v-if="selectedProvince === province.id && citiesByProvince[province.id]"
+                class="cities-list"
+              >
                 <div
                   v-for="city in citiesByProvince[province.id]"
                   :key="city"
@@ -74,6 +74,7 @@
               {{ cls.name }}
             </el-tag>
           </div>
+
           <el-button
             v-if="selectedClass || selectedProvince !== 'all' || selectedCity || searchQuery"
             type="danger"
@@ -126,14 +127,13 @@
           </div>
         </div>
 
-        <!-- 分页 -->
+        <!-- 分页（前端分页） -->
         <div class="pagination">
           <el-pagination
             v-model:current-page="currentPage"
             :page-size="pageSize"
-            :total="total"
+            :total="filteredTotal"
             layout="prev, pager, next"
-            @current-change="fetchHeritageItems"
           />
         </div>
       </div>
@@ -223,7 +223,6 @@
 import { ref, computed, watch, onBeforeUnmount, nextTick, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import NavBar from '../components/NavBar.vue'
-import { api } from '../utils/api'
 
 declare global {
   interface Window {
@@ -231,16 +230,11 @@ declare global {
   }
 }
 
-/** ====== 后端地址配置 ======
- * 推荐你在 front/.env.development 里加：
- * VITE_API_ORIGIN=http://localhost:3000
- * VITE_API_BASE=/api
- *
- * 这样：
- * - 接口：  http://localhost:3000/api/...
- * - 图片：  http://localhost:3000/uploads/...
+/** ====== 后端地址配置（不改你后端，只是前端拼 URL） ======
+ * 如果你没配 env，也没关系：默认就是 localhost:3000
  */
-const API_ORIGIN = (import.meta as any).env?.VITE_API_ORIGIN as string | undefined
+const API_ORIGIN =
+  ((import.meta as any).env?.VITE_API_ORIGIN as string | undefined) || 'http://localhost:3000'
 const API_BASE = ((import.meta as any).env?.VITE_API_BASE as string | undefined) || '/api'
 
 function joinUrl(a: string, b: string) {
@@ -248,66 +242,17 @@ function joinUrl(a: string, b: string) {
   const right = b.replace(/^\/+/, '')
   return `${left}/${right}`
 }
-
 function apiUrl(path: string) {
-  // path: "/heritage/yrd/xxx"
   const base = API_BASE.startsWith('/') ? API_BASE : `/${API_BASE}`
   const p = path.startsWith('/') ? path : `/${path}`
-  if (API_ORIGIN) return joinUrl(API_ORIGIN, `${base}${p}`)
-  return `${base}${p}` // 走同源（配合 Vite proxy 时可用）
+  return joinUrl(API_ORIGIN, `${base}${p}`)
 }
-
 function assetUrl(p?: string | null) {
   if (!p) return ''
   if (/^https?:\/\//i.test(p)) return p
-  // /uploads/xxx => 拼到后端域名上
-  if (API_ORIGIN) return joinUrl(API_ORIGIN, p)
-  return p
+  // 你后端返回的是 /uploads/images/xxx.jpg，前端必须拼到 3000 上
+  return joinUrl(API_ORIGIN, p)
 }
-
-
-const searchQuery = ref('')
-const selectedProvince = ref('all')
-const selectedCity = ref('')
-const selectedClass = ref<string | null>(null)
-const currentPage = ref(1)
-const pageSize = ref(9)
-
-const showDetail = ref(false)
-const selectedItem = ref<any>(null)
-
-const expandedProvinces = ref<string[]>([])
-const heritageItems = ref<any[]>([])
-const total = ref(0)
-const loading = ref(false)
-
-const provinces = ref([
-  { id: 'all', name: '全部地区', count: 500 },
-  { id: '江苏', name: '江苏', count: 134 },
-  { id: '浙江', name: '浙江', count: 102 },
-  { id: '上海', name: '上海', count: 35 },
-  { id: '安徽', name: '安徽', count: 89 },
-])
-
-const citiesByProvince = ref<Record<string, string[]>>({
-  '江苏': ['南通', '常州', '镇江', '扬州', '泰州', '徐州', '连云港', '淮安', '苏州', '无锡'],
-  '浙江': ['杭州', '宁波', '温州', '嘉兴', '湖州', '绍兴', '金华', '衢州', '舟山', '台州'],
-  '上海': ['黄浦', '静安', '徐汇', '长宁', '普陀', '虹口', '杨浦', '浦东'],
-  '安徽': ['合肥', '芜湖', '马鞍山', '安庆', '黄山', '阜阳', '六安', '亳州', '池州', '宣城'],
-})
-
-const heritageclasses = ref([
-  { id: '民间文学', name: '民间文学' },
-  { id: '说唱艺曲', name: '说唱艺曲' },
-  { id: '体育游艺', name: '体育游艺' },
-  { id: '传统技艺', name: '传统技艺' },
-  { id: '工艺美术', name: '工艺美术' },
-  { id: '传统医药', name: '传统医药' },
-  { id: '民俗', name: '民俗' },
-  { id: '传统戏剧', name: '传统戏剧' },
-  { id: '音乐舞蹈', name: '音乐舞蹈' },
-  { id: '风俗节庆', name: '风俗节庆' },
-])
 
 type HeritageItem = {
   id: string | number
@@ -325,78 +270,154 @@ type HeritageItem = {
   markerTitle?: string
 }
 
-const heritageItems = ref<HeritageItem[]>([])
-const total = ref(0)
-const loading = ref(false)
+/** ====== UI 状态 ====== */
+const searchQuery = ref('')
+const selectedProvince = ref('all')
+const selectedCity = ref('')
+const selectedClass = ref<string | null>(null)
+const currentPage = ref(1)
+const pageSize = ref(9)
 
-// ✅ 从你的后端 /api/heritage/yrd 拉列表
-const fetchHeritageItems = async () => {
+const showDetail = ref(false)
+const selectedItem = ref<HeritageItem | null>(null)
+
+const expandedProvinces = ref<string[]>([])
+
+/** ====== 你原来的筛选项（不动后端） ====== */
+const provinces = ref([
+  { id: 'all', name: '全部地区', count: 500 },
+  { id: '江苏', name: '江苏', count: 134 },
+  { id: '浙江', name: '浙江', count: 102 },
+  { id: '上海', name: '上海', count: 35 },
+  { id: '安徽', name: '安徽', count: 89 },
+])
+
+const citiesByProvince = ref<Record<string, string[]>>({
+  江苏: ['南通', '常州', '镇江', '扬州', '泰州', '徐州', '连云港', '淮安', '苏州', '无锡'],
+  浙江: ['杭州', '宁波', '温州', '嘉兴', '湖州', '绍兴', '金华', '衢州', '舟山', '台州'],
+  上海: ['黄浦', '静安', '徐汇', '长宁', '普陀', '虹口', '杨浦', '浦东'],
+  安徽: ['合肥', '芜湖', '马鞍山', '安庆', '黄山', '阜阳', '六安', '亳州', '池州', '宣城'],
+})
+
+const heritageclasses = ref([
+  { id: '民间文学', name: '民间文学' },
+  { id: '说唱艺曲', name: '说唱艺曲' },
+  { id: '体育游艺', name: '体育游艺' },
+  { id: '传统技艺', name: '传统技艺' },
+  { id: '工艺美术', name: '工艺美术' },
+  { id: '传统医药', name: '传统医药' },
+  { id: '民俗', name: '民俗' },
+  { id: '传统戏剧', name: '传统戏剧' },
+  { id: '音乐舞蹈', name: '音乐舞蹈' },
+  { id: '风俗节庆', name: '风俗节庆' },
+])
+
+/** ====== 数据（只用你弹窗的后端：/heritage/yrd 和 /heritage/yrd/:id） ====== */
+const loading = ref(false)
+const allItems = ref<HeritageItem[]>([])
+
+function pickCityFromRegion(region: string, province: string) {
+  const list = citiesByProvince.value[province] || []
+  return list.find((c) => region.includes(c)) || ''
+}
+
+function pickProvinceFromRegion(region: string) {
+  const ps = ['江苏', '浙江', '上海', '安徽']
+  return ps.find((p) => region.includes(p)) || ''
+}
+
+async function fetchAllYrdListOnce() {
   try {
     loading.value = true
 
-    // 你的后端列表接口参数是 page/pageSize/keyword
-    const url = apiUrl(
-      `/heritage/yrd?page=${currentPage.value}&pageSize=${pageSize.value}&keyword=${encodeURIComponent(searchQuery.value || '')}`
-    )
-
+    // 你表总数 518，pageSize 1000 基本一把拉完（不需要改后端）
+    const url = apiUrl(`/heritage/yrd?page=1&pageSize=1000&keyword=`)
     const resp = await fetch(url)
     const json = await resp.json()
 
     if (!resp.ok || !json?.success) {
-      ElMessage.error(json?.message || '加载数据失败')
+      ElMessage.error(json?.message || '加载列表失败')
       return
     }
 
-    heritageItems.value = (json.data || []).map((row: any) => ({
-      id: row.id,
-      name: row.name,
-      category: row.category,
-      location: row.region || '未知',
-      region: row.region,
-      intro: row.intro,
-      lng: row.lng,
-      lat: row.lat,
-      image: assetUrl(row.image),
-      markerTitle: row.name,
-    }))
+    const rows = (json.data || []) as any[]
+    allItems.value = rows.map((row) => {
+      const region = row.region || ''
+      const province = pickProvinceFromRegion(region)
+      const city = province ? pickCityFromRegion(region, province) : ''
 
-    total.value = json.total || 0
+      return {
+        id: row.id,
+        name: row.name,
+        category: row.category || '',
+        region,
+        location: region || '未知',
+        city,
+        intro: row.intro || '',
+        lng: row.lng,
+        lat: row.lat,
+        image: assetUrl(row.image),
+        markerTitle: row.name,
+      } as HeritageItem
+    })
   } catch (e) {
     console.error(e)
-    ElMessage.error('加载数据失败，请重试')
+    ElMessage.error('加载列表失败，请重试')
   } finally {
     loading.value = false
   }
 }
 
 onMounted(() => {
-  fetchHeritageItems()
+  fetchAllYrdListOnce()
 })
 
+/** ====== 前端筛选 + 分页（不改你后端） ====== */
+const filteredItems = computed(() => {
+  const kw = searchQuery.value.trim().toLowerCase()
+  return allItems.value.filter((item) => {
+    // 省
+    if (selectedProvince.value !== 'all') {
+      if (!(item.region || '').includes(selectedProvince.value)) return false
+    }
+    // 市
+    if (selectedCity.value) {
+      if (!(item.region || '').includes(selectedCity.value)) return false
+    }
+    // 类别
+    if (selectedClass.value) {
+      if (!(item.category || '').includes(selectedClass.value)) return false
+    }
+    // 关键词：name + intro
+    if (kw) {
+      const hay = `${item.name || ''} ${item.intro || ''}`.toLowerCase()
+      if (!hay.includes(kw)) return false
+    }
+    return true
+  })
+})
 
+const filteredTotal = computed(() => filteredItems.value.length)
 
+const paginatedItems = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return filteredItems.value.slice(start, end)
+})
+
+/** ====== 顶部 tags ====== */
 const topTags = computed(() => {
   const tags: string[] = []
-  if (selectedProvince.value !== 'all') {
-    tags.push(`地区：${selectedProvince.value}`)
-  }
+  if (selectedProvince.value !== 'all') tags.push(`地区：${selectedProvince.value}`)
   if (selectedCity.value) tags.push(`城市：${selectedCity.value}`)
-  if (selectedClass.value) {
-    const cls = heritageclasses.value.find((c) => c.id === selectedClass.value)
-    if (cls) tags.push(`分类：${cls.name}`)
-  }
+  if (selectedClass.value) tags.push(`分类：${selectedClass.value}`)
   if (searchQuery.value) tags.push(`搜索：${searchQuery.value}`)
   return tags
 })
 
-// 分页数据 - 由于数据从 API 获取，已经分页，直接使用
-const paginatedItems = computed(() => {
-  return heritageItems.value
-})
-
+/** ====== UI 操作 ====== */
 const handleSearch = () => {
   currentPage.value = 1
-  fetchHeritageItems()
 }
 
 const removeTopTag = (tag: string) => {
@@ -411,10 +432,41 @@ const removeTopTag = (tag: string) => {
     searchQuery.value = ''
   }
   currentPage.value = 1
-  fetchHeritageItems()
 }
 
-/** ====== ✅ 弹窗 ====== */
+const toggleProvince = (provinceId: string) => {
+  if (provinceId === 'all') {
+    selectedProvince.value = 'all'
+    selectedCity.value = ''
+  } else {
+    selectedProvince.value = provinceId
+    selectedCity.value = ''
+    const idx = expandedProvinces.value.indexOf(provinceId)
+    if (idx >= 0) expandedProvinces.value.splice(idx, 1)
+    else expandedProvinces.value.push(provinceId)
+  }
+  currentPage.value = 1
+}
+
+const handleSelectClass = (classId: string) => {
+  selectedClass.value = selectedClass.value === classId ? null : classId
+  currentPage.value = 1
+}
+
+const handleSelectCity = (city: string) => {
+  selectedCity.value = selectedCity.value === city ? '' : city
+  currentPage.value = 1
+}
+
+const clearAllFilters = () => {
+  searchQuery.value = ''
+  selectedProvince.value = 'all'
+  selectedCity.value = ''
+  selectedClass.value = null
+  currentPage.value = 1
+}
+
+/** ====== ✅ 弹窗详情：只调用你写的 /api/heritage/yrd/:id ====== */
 type YrdDetailApi = {
   id: string
   name: string
@@ -468,58 +520,18 @@ async function fetchYrdDetail(id: string): Promise<Partial<HeritageItem> | null>
 }
 
 const selectItem = async (item: HeritageItem) => {
-
+  // 先用列表数据打开弹窗
   selectedItem.value = {
     ...item,
     image: assetUrl(item.image || ''),
   }
   showDetail.value = true
-  currentPage.value = 1
 
-
+  // 再请求详情（你写的后端）
   const detail = await fetchYrdDetail(String(item.id))
-  if (detail) {
+  if (detail && selectedItem.value) {
     selectedItem.value = { ...selectedItem.value, ...detail }
   }
-}
-
-const toggleProvince = (provinceId: string) => {
-  if (provinceId === 'all') {
-    selectedProvince.value = 'all'
-    selectedCity.value = ''
-  } else {
-    selectedProvince.value = provinceId
-    selectedCity.value = ''
-    const idx = expandedProvinces.value.indexOf(provinceId)
-    if (idx >= 0) expandedProvinces.value.splice(idx, 1)
-    else expandedProvinces.value.push(provinceId)
-  }
-  currentPage.value = 1
-  fetchHeritageItems()
-}
-
-const handleSelectClass = (classId: string) => {
-  // 点击已选中的类别时取消选中，否则选中该类别
-  selectedClass.value = selectedClass.value === classId ? null : classId
-  currentPage.value = 1
-  fetchHeritageItems()
-}
-
-const handleSelectCity = (city: string) => {
-  // 点击已选中的城市时取消选中，否则选中该城市
-  selectedCity.value = selectedCity.value === city ? '' : city
-  currentPage.value = 1
-  fetchHeritageItems()
-}
-
-const clearAllFilters = () => {
-  // 清除所有筛选条件
-  searchQuery.value = ''
-  selectedProvince.value = 'all'
-  selectedCity.value = ''
-  selectedClass.value = null
-  currentPage.value = 1
-  fetchHeritageItems()
 }
 
 /** ============ 高德地图（弹窗内） ============ */
@@ -614,7 +626,6 @@ async function initMap() {
       mapInstance.addControl(new AMap.Scale())
     })
 
-    // 弹窗动画结束后再 resize 一次，避免白板
     setTimeout(() => {
       try {
         mapInstance?.resize?.()
@@ -654,7 +665,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* 你原样式全部保留（我只补了一个图片占位样式） */
+/* 下面样式我不乱动，你原样式 그대로保留 */
 .container {
   position: relative;
   padding-top: 20px;
@@ -970,7 +981,7 @@ onBeforeUnmount(() => {
   left: 100px;
 }
 
-/* ======== 弹窗：详情页同款风格 + 背景层 ======== */
+/* ======== 弹窗 ======== */
 :deep(.heritage-detail-dialog) {
   background: transparent;
   box-shadow: none;
