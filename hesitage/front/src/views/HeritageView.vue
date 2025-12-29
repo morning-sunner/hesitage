@@ -32,25 +32,29 @@
             <div
               v-for="province in provinces"
               :key="province.id"
-              :class="['category-item', { active: selectedProvince === province.id }]"
-              @click="toggleProvince(province.id)"
             >
-              <span class="category-name">{{ province.name }}</span>
-              <span v-if="province.id !== 'all'" class="expand-icon">
-                {{ expandedProvinces.includes(province.id) ? '▼' : '▶' }}
-              </span>
-              <span class="category-count">{{ province.count }}</span>
-            </div>
-
-            <!-- 地级市子项 -->
-            <div v-if="selectedProvince !== 'all' && citiesByProvince[selectedProvince]" class="cities-list">
+              <!-- 省份项 -->
               <div
-                v-for="city in citiesByProvince[selectedProvince]"
-                :key="city"
-                :class="['city-item', { active: selectedCity === city }]"
-                @click.stop="selectedCity = selectedCity === city ? '' : city"
+                :class="['category-item', { active: selectedProvince === province.id }]"
+                @click="toggleProvince(province.id)"
               >
-                <span class="city-name">{{ city }}</span>
+                <span class="category-name">{{ province.name }}</span>
+                <span v-if="province.id !== 'all'" class="expand-icon">
+                  {{ expandedProvinces.includes(province.id) ? '▼' : '▶' }}
+                </span>
+                <span class="category-count">{{ province.count }}</span>
+              </div>
+
+              <!-- 地级市子项 - 紧贴在省份下方 -->
+              <div v-if="selectedProvince === province.id && citiesByProvince[province.id]" class="cities-list">
+                <div
+                  v-for="city in citiesByProvince[province.id]"
+                  :key="city"
+                  :class="['city-item', { active: selectedCity === city }]"
+                  @click.stop="handleSelectCity(city)"
+                >
+                  <span class="city-name">{{ city }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -64,12 +68,21 @@
               v-for="cls in heritageclasses"
               :key="cls.id"
               :type="selectedClass === cls.id ? 'primary' : 'info'"
-              @click="selectedClass = selectedClass === cls.id ? null : cls.id"
+              @click="handleSelectClass(cls.id)"
               class="heritage-tag"
             >
               {{ cls.name }}
             </el-tag>
           </div>
+          <el-button
+            v-if="selectedClass || selectedProvince !== 'all' || selectedCity || searchQuery"
+            type="danger"
+            link
+            @click="clearAllFilters"
+            class="clear-filters-btn"
+          >
+            清除所有筛选
+          </el-button>
         </div>
       </div>
 
@@ -193,7 +206,7 @@ const heritageclasses = ref([
 const fetchHeritageItems = async () => {
   try {
     loading.value = true
-    const params = {
+    const params: Record<string, any> = {
       limit: pageSize.value,
       offset: (currentPage.value - 1) * pageSize.value
     }
@@ -201,6 +214,9 @@ const fetchHeritageItems = async () => {
     // 添加过滤参数
     if (selectedProvince.value !== 'all') {
       params.province = selectedProvince.value
+    }
+    if (selectedCity.value) {
+      params.city = selectedCity.value
     }
     if (selectedClass.value) {
       params.category = selectedClass.value
@@ -211,21 +227,24 @@ const fetchHeritageItems = async () => {
     
     const response = await api.get('/heritage', { params })
     
-    if (response.data.success) {
+    // api.get 直接返回响应体，不是 { data: 响应体 } 的结构
+    if (response.success) {
+      // 图片服务器地址
+      const imageServer = 'http://47.110.134.147'
       // 转换数据格式以适应现有的模板
-      heritageItems.value = response.data.data.map((item: any) => ({
+      heritageItems.value = response.data.map((item: any) => ({
         id: item.name_cn,
         name: item.name_cn,
         category: item.categorycn || '未分类',
         location: item.place_merged || '未知',
         province: item.provincecn,
-        image: item.image_url || 'https://via.placeholder.com/300x300?text=暂无图片',
+        image: item.image_url ? `${imageServer}${item.image_url}` : '/placeholder.png',
         description: item.intro || '暂无描述',
         significance: '国家级非物质文化遗产',
         latitude: item.y,
         longitude: item.x
       }))
-      total.value = response.data.total
+      total.value = response.total
     } else {
       ElMessage.error('加载数据失败')
     }
@@ -299,6 +318,30 @@ const toggleProvince = (provinceId: string) => {
     selectedProvince.value = provinceId
     selectedCity.value = ''
   }
+  currentPage.value = 1
+  fetchHeritageItems()
+}
+
+const handleSelectClass = (classId: string) => {
+  // 点击已选中的类别时取消选中，否则选中该类别
+  selectedClass.value = selectedClass.value === classId ? null : classId
+  currentPage.value = 1
+  fetchHeritageItems()
+}
+
+const handleSelectCity = (city: string) => {
+  // 点击已选中的城市时取消选中，否则选中该城市
+  selectedCity.value = selectedCity.value === city ? '' : city
+  currentPage.value = 1
+  fetchHeritageItems()
+}
+
+const clearAllFilters = () => {
+  // 清除所有筛选条件
+  searchQuery.value = ''
+  selectedProvince.value = 'all'
+  selectedCity.value = ''
+  selectedClass.value = null
   currentPage.value = 1
   fetchHeritageItems()
 }
@@ -454,6 +497,19 @@ const toggleProvince = (provinceId: string) => {
 
 :deep(.heritage-tag:hover) {
   opacity: 0.8;
+}
+
+.clear-filters-btn {
+  display: block;
+  margin-top: 12px;
+  width: 100%;
+  text-align: center;
+  color: #f56c6c;
+}
+
+:deep(.clear-filters-btn:hover) {
+  color: #dd001b;
+  font-weight: 600;
 }
 
 /* 右侧内容区域 */

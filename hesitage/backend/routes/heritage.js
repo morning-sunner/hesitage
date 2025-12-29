@@ -8,7 +8,7 @@ const db = require('../config/database');
  */
 router.get('/', async (req, res) => {
   try {
-    const { province, category, search, limit = 100, offset = 0 } = req.query;
+    const { province, city, category, search, limit = 100, offset = 0 } = req.query;
     
     let query = `
       SELECT 
@@ -31,6 +31,13 @@ router.get('/', async (req, res) => {
     if (province) {
       query += ` AND provincecn = $${paramCount}`;
       params.push(province);
+      paramCount++;
+    }
+    
+    // 按城市过滤 (在place_merged字段中查找)
+    if (city) {
+      query += ` AND place_merged LIKE $${paramCount}`;
+      params.push(`%${city}%`);
       paramCount++;
     }
     
@@ -61,6 +68,11 @@ router.get('/', async (req, res) => {
     if (province) {
       countQuery += ` AND provincecn = $${countParamCount}`;
       countParams.push(province);
+      countParamCount++;
+    }
+    if (city) {
+      countQuery += ` AND place_merged LIKE $${countParamCount}`;
+      countParams.push(`%${city}%`);
       countParamCount++;
     }
     if (category) {
