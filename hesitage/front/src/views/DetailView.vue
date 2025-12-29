@@ -6,7 +6,11 @@
     <!-- 顶部大背景区域 -->
     <div class="hero-section">
       <div class="hero-bg">
-        <img src="https://via.placeholder.com/1400x300?text=大美非遗" alt="hero" class="hero-image" />
+        <img
+          src="https://via.placeholder.com/1400x300?text=大美非遗"
+          alt="hero"
+          class="hero-image"
+        />
         <div class="hero-title">
           <h1>大美非遗</h1>
           <p>长三角非物质文化遗产展示平台</p>
@@ -20,24 +24,20 @@
         <!-- 中部三大板块轮播 -->
         <div class="middle-carousel-section">
           <div class="carousel-container">
-            <!-- 轮播箭头按钮 -->
             <button class="carousel-btn left-btn" @click="prevPanel">❮</button>
             <button class="carousel-btn right-btn" @click="nextPanel">❯</button>
 
-            <!-- 轮播轨道 -->
             <div
               class="carousel-track"
               :style="{ transform: `translateX(-${currentIndex * 100}%)` }"
             >
-              <!-- 面板1：非遗传承人（专题入口面板） -->
+              <!-- 面板1：非遗传承人 -->
               <div class="carousel-panel">
                 <div
                   class="panel-content inheritor-panel"
                   @click="goToInheritorOverview"
                 >
                   <h3 class="panel-title">非遗传承人</h3>
-
-                  <!-- 综述文字 -->
                   <div class="inheritor-summary">
                     <p>
                       非遗传承人是非物质文化遗产活态延续的核心主体，
@@ -49,28 +49,32 @@
                       构成了中国非遗保护与传承的重要实践区域。
                     </p>
                   </div>
-
-                  <!-- 明确的入口提示 -->
-                  <div class="enter-hint">
-                    点击进入非遗传承人专题 →
-                  </div>
+                  <div class="enter-hint">点击进入非遗传承人专题 →</div>
                 </div>
               </div>
-              
+
               <!-- 面板2：相关书籍 -->
               <div class="carousel-panel">
                 <div class="panel-content">
                   <h3 class="panel-title">相关书籍</h3>
                   <div class="items-grid">
                     <div
-                      v-for="book in books"
-                      :key="book.id"
+                      v-for="pdf in pdfFiles"
+                      :key="pdf.id"
                       class="panel-item"
                     >
                       <div class="item-content">
                         <div class="item-icon">📚</div>
-                        <h4>{{ book.title }}</h4>
-                        <p>点击查看详情</p>
+                        <h4>{{ pdf.book_name }}</h4>
+                        <p>下载次数: {{ pdf.download_count || 0 }}</p>
+                        <!-- 下载按钮 -->
+                        <button 
+                          class="download-btn" 
+                          @click.stop="downloadPdf(pdf.id)"
+                          :disabled="isDownloading(pdf.id)"
+                        >
+                          {{ isDownloading(pdf.id) ? '下载中...' : '下载 PDF' }}
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -86,6 +90,7 @@
                       v-for="video in videos"
                       :key="video.id"
                       class="panel-item"
+                      @click="video.link && openLink(video.link)"
                     >
                       <div class="item-content">
                         <div class="item-icon">🎬</div>
@@ -98,7 +103,6 @@
               </div>
             </div>
 
-            <!-- 轮播指示器 -->
             <div class="carousel-indicators">
               <button
                 v-for="(_, index) in 3"
@@ -116,7 +120,12 @@
           <div class="content-column">
             <h3 class="column-title">热播影视</h3>
             <ul class="content-list">
-              <li v-for="item in hotVideos" :key="item.id" class="list-item">
+              <li
+                v-for="item in hotVideos"
+                :key="item.id"
+                class="list-item"
+                @click="item.link && openLink(item.link)"
+              >
                 <span class="list-icon">▶️</span>
                 {{ item.title }}
               </li>
@@ -136,7 +145,11 @@
           <div class="content-column">
             <h3 class="column-title">热门人物</h3>
             <ul class="content-list">
-              <li v-for="item in hotPeople" :key="item.id" class="list-item">
+              <li
+                v-for="item in hotPeople"
+                :key="item.id"
+                class="list-item"
+              >
                 <span class="list-icon">👤</span>
                 {{ item.name }}
               </li>
@@ -149,89 +162,306 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
-import NavBar from '../components/NavBar.vue'
-
-/* ===== 新增：router（最小侵入） ===== */
-const router = useRouter()
-
-/* ===== 原有逻辑不变 ===== */
-const currentIndex = ref(0)
-
-const nextPanel = () => {
-  currentIndex.value = (currentIndex.value + 1) % 3
+  import { ref, onMounted, onUnmounted, reactive } from 'vue'
+  import { useRouter } from 'vue-router'
+  import NavBar from '../components/NavBar.vue'
+  
+  const router = useRouter()
+  const API_BASE_URL = 'http://localhost:3000' // Node.js后端地址
+  
+  // 轮播相关
+  const currentIndex = ref(0)
+  const nextPanel = () => {
+    currentIndex.value = (currentIndex.value + 1) % 3
+  }
+  const prevPanel = () => {
+    currentIndex.value = (currentIndex.value - 1 + 3) % 3
+  }
+  const goToPanel = (index: number) => {
+    currentIndex.value = index
+  }
+  
+  let autoScrollInterval: ReturnType<typeof setInterval>
+  const startAutoScroll = () => {
+    autoScrollInterval = setInterval(nextPanel, 5000)
+  }
+  const stopAutoScroll = () => {
+    clearInterval(autoScrollInterval)
+  }
+  
+  const goToInheritorOverview = () => {
+    router.push({ path: '/Content' })
+  }
+  
+  // PDF文件相关
+  const pdfFiles = ref<any[]>([])
+  const downloadingIds = reactive(new Set<number>())
+  
+  // 获取PDF文件列表
+  const fetchPdfFiles = async () => {
+    try {
+      console.log('请求URL:', 'http://localhost:3000/api/pdf/files?limit=6');
+      fetch('http://localhost:3000/api/pdf/files?limit=6')
+      
+      const response = await fetch(`${API_BASE_URL}/api/pdf/files?limit=6`)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP错误! 状态码: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        console.log('PDF文件获取成功:', data.data.length, '个项目')
+        pdfFiles.value = data.data
+      } else {
+        console.warn('API返回成功: false', data.message)
+        useFallbackData()
+      }
+    } catch (error) {
+      console.error('获取PDF文件列表失败:', error)
+      useFallbackData()
+    }
+  }
+  
+  // 使用备用数据
+  const useFallbackData = () => {
+  console.log('使用备用PDF数据')
+  pdfFiles.value = [
+    { 
+      id: 1, 
+      book_name: '中国的非物质文化遗产', 
+      file_name: '中国的非物质文化遗产（《中国的非物质文化遗产》编写组_ (Z-Library).pdf',
+      download_count: 0
+    },
+    { 
+      id: 2, 
+      book_name: '和爸妈游中国世界遗产非物质文化遗产名录遗言', 
+      file_name: '和爸妈游中国世界遗产非物质文化遗产名录遗言(易磊)(Z-Library).pdf',
+      download_count: 0
+    },
+    { 
+      id: 3, 
+      book_name: '安徽省非物质文化遗产乡土读本 皖南卷', 
+      file_name: '安徽省非物质文化遗产乡土读本 皖南卷(安徽省非物质文_ (Z-Library).pdf',
+      download_count: 0
+    },
+    { 
+      id: 4, 
+      book_name: '少数民族非遗蓝皮书 中国少数民族非物质文化遗产发展报告', 
+      file_name: '少数民族非遗蓝皮书 中国少数民族非物质文化遗产发展报告_ (Z-Library).pdf',
+      download_count: 0
+    },
+    { 
+      id: 5, 
+      book_name: '新疆非物质文化遗产集锦 第4卷 民俗', 
+      file_name: '新疆非物质文化遗产集锦 第4卷 民俗(李季莲主编 e_ (Z-Library).pdf',
+      download_count: 0
+    },
+    { 
+      id: 6, 
+      book_name: '钱塘记忆 杭州市非物质文化遗产新传播英 技艺卷', 
+      file_name: '钱塘记忆 杭州市非物质文化遗产新传播英 技艺卷(杭州_ (Z-Library).pdf',
+      download_count: 0
+    }
+  ]
 }
-const prevPanel = () => {
-  currentIndex.value = (currentIndex.value - 1 + 3) % 3
-}
-const goToPanel = (index: number) => {
-  currentIndex.value = index
-}
-
-/* ===== 自动轮播保持不变 ===== */
-let autoScrollInterval: ReturnType<typeof setInterval>
-
-const startAutoScroll = () => {
-  autoScrollInterval = setInterval(nextPanel, 5000)
-}
-const stopAutoScroll = () => {
-  clearInterval(autoScrollInterval)
-}
-
-/* ===== 数据保持不变 ===== */
-/* ===== 非遗传承人专题入口 ===== */
-const goToInheritorOverview = () => {
-  router.push({
-    path: '/Content',
+  
+  // 检查是否正在下载
+  const isDownloading = (id: number) => {
+    return downloadingIds.has(id)
+  }
+  
+  // 下载PDF文件
+  const downloadPdf = async (bookId: number) => {
+    if (isDownloading(bookId)) {
+      console.log('该文件已在下载中:', bookId)
+      return
+    }
+  
+    try {
+      downloadingIds.add(bookId)
+      
+      console.log('开始下载PDF, ID:', bookId)
+      
+      // 调用Node.js后端下载接口
+      const response = await fetch(`${API_BASE_URL}/api/pdf/download/${bookId}`)
+      
+      if (!response.ok) {
+        let errorMessage = `下载失败 (HTTP ${response.status})`
+        
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.message || errorMessage
+        } catch (e) {
+          // 如果响应不是JSON，使用默认错误信息
+        }
+        
+        throw new Error(errorMessage)
+      }
+      
+      // 获取文件名
+      const contentDisposition = response.headers.get('Content-Disposition')
+      let fileName = `book_${bookId}.pdf`
+      
+      if (contentDisposition) {
+        // 尝试从Content-Disposition头中提取文件名
+        const match = contentDisposition.match(/filename="(.+?)"/)
+        if (match && match[1]) {
+          fileName = match[1]
+        }
+      }
+      
+      // 获取blob数据
+      const blob = await response.blob()
+      
+      // 创建下载链接
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName
+      a.style.display = 'none'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+      
+      console.log('下载完成:', fileName)
+      
+      // 更新本地下载次数
+      const bookIndex = pdfFiles.value.findIndex(b => b.id === bookId)
+      if (bookIndex !== -1) {
+        pdfFiles.value[bookIndex].download_count = 
+          (pdfFiles.value[bookIndex].download_count || 0) + 1
+      }
+      
+      alert('下载成功！')
+      
+    } catch (err: any) {
+      console.error('下载出错:', err)
+      alert(`下载失败: ${err.message}`)
+    } finally {
+      downloadingIds.delete(bookId)
+    }
+  }
+  
+  // 格式化文件大小
+  const formatFileSize = (bytes: number) => {
+    if (!bytes || bytes === 0) return '0 B'
+    
+    const units = ['B', 'KB', 'MB', 'GB']
+    let size = bytes
+    let unitIndex = 0
+    
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024
+      unitIndex++
+    }
+    
+    return `${size.toFixed(2)} ${units[unitIndex]}`
+  }
+  
+  // 组件挂载时获取数据
+  onMounted(() => {
+    console.log('DetailView组件已挂载，正在获取PDF文件...')
+    fetchPdfFiles()
+    startAutoScroll()
   })
-}
-
-const books = ref([
-  { id: 1, title: '非遗保护的理论探讨' },
-  { id: 2, title: '手艺人：湖南失的江南医学' },
-  { id: 3, title: '非物质文化遗产论' },
-  { id: 4, title: '江苏国家级非遗的文化遗产概览' },
-  { id: 5, title: '非遗的活态传承与社区实践' }
-])
-
-const videos = ref([
-  { id: 1, title: '我在故宫修文物', director: '纪录片' },
-  { id: 2, title: '下町的匠人', director: '纪录片' },
-  { id: 3, title: '中国手作', director: '纪录片' },
-  { id: 4, title: '传承', director: '纪录片' },
-  { id: 5, title: '曲曲人百艺', director: '纪录片' },
-  { id: 6, title: '天工开物', director: '纪录片' }
-])
-
-const hotVideos = ref([
-  { id: 1, title: '我在故宫修文物' },
-  { id: 2, title: '下町的匠人' },
-  { id: 3, title: '中国手作' },
-  { id: 4, title: '传承' },
-  { id: 5, title: '曲曲人百艺' }
-])
-
-const hotBooks = ref([
-  { id: 1, title: '非遗保护的理论探讨' },
-  { id: 2, title: '手艺人：湖南失的江南医学' },
-  { id: 3, title: '非物质文化遗产论' },
-  { id: 4, title: '江苏国家级非遗的文化遗产概览' },
-  { id: 5, title: '非遗的活态传承与社区实践' }
-])
-
-const hotPeople = ref([
-  { id: 1, name: '干茜' },
-  { id: 2, name: '周笑燕' },
-  { id: 3, name: '王屹文' },
-  { id: 4, name: '王杨兴' },
-  { id: 5, name: '汪美丽' },
-  { id: 6, name: '姚建茗' }
-])
-
-onMounted(startAutoScroll)
-onUnmounted(stopAutoScroll)
-</script>
+  
+  onUnmounted(() => {
+    stopAutoScroll()
+  })
+  
+  /* ===== 其他数据（保持不变） ===== */
+  const videos = ref([
+    {
+      id: 1,
+      title: '非遗有新人',
+      director: '纪录片',
+      link: 'https://www.youtube.com/playlist?list=PLtFDvh1SGFq-t4LEvcTf4MXoxk-pVEFDO'
+    },
+    {
+      id: 2,
+      title: '守护非遗之美',
+      director: '纪录片',
+      link: 'https://tv.cctv.com/2024/12/22/VIDAsjUSrywjoV169gNyOa54241222.shtml'
+    },
+    {
+      id: 3,
+      title: '非遗里的中国',
+      director: '纪录片',
+      link: 'https://tv.cctv.com/2022/12/30/VIDAIxSnFuJtsqzH4HZK9Yc4221230.shtml'
+    },
+    {
+      id: 4,
+      title: '我在故宫修文物',
+      director: '纪录片',
+      link: 'https://www.youtube.com/playlist?list=PLqid5YompiAjYTq8ZBPA4NFdbnrKrWXQM'
+    },
+    {
+      id: 5,
+      title: '中华百工',
+      director: '纪录片',
+      link: 'https://www.youtube.com/playlist?list=PL0eGJygpmOH71cX3W-RxvYYG0_EME-vVz'
+    },
+    {
+      id: 6,
+      title: '一百年很长吗',
+      director: '纪录片',
+      link: 'http://www.docuchina.cn/2020/01/23/VIDAMJfKCVTuU9ivUzhTH0hi200123.shtml'
+    }
+  ])
+  
+  const hotVideos = ref([
+    {
+      id: 1,
+      title: '非遗有新人',
+      link: 'https://www.youtube.com/playlist?list=PLtFDvh1SGFq-t4LEvcTf4MXoxk-pVEFDO'
+    },
+    {
+      id: 2,
+      title: '守护非遗之美',
+      link: 'https://tv.cctv.com/2024/12/22/VIDAsjUSrywjoV169gNyOa54241222.shtml'
+    },
+    {
+      id: 3,
+      title: '非遗里的中国',
+      link: 'https://tv.cctv.com/2022/12/30/VIDAIxSnFuJtsqzH4HZK9Yc4221230.shtml'
+    },
+    {
+      id: 4,
+      title: '我在故宫修文物',
+      link: 'https://www.youtube.com/playlist?list=PLqid5YompiAjYTq8ZBPA4NFdbnrKrWXQM'
+    },
+    {
+      id: 5,
+      title: '中华百工',
+      link: 'https://www.youtube.com/playlist?list=PL0eGJygpmOH71cX3W-RxvYYG0_EME-vVz'
+    }
+  ])
+  
+  const hotBooks = ref([
+    { id: 1, title: '非遗保护的理论探讨' },
+    { id: 2, title: '手艺人：湖南失的江南医学' },
+    { id: 3, title: '非物质文化遗产论' },
+    { id: 4, title: '江苏国家级非遗的文化遗产概览' },
+    { id: 5, title: '非遗的活态传承与社区实践' }
+  ])
+  
+  const hotPeople = ref([
+    { id: 1, name: '干茜' },
+    { id: 2, name: '周笑燕' },
+    { id: 3, name: '王屹文' },
+    { id: 4, name: '王杨兴' },
+    { id: 5, name: '汪美丽' },
+    { id: 6, name: '姚建茗' }
+  ])
+  
+  /* 通用打开链接 */
+  const openLink = (url: string) => {
+    window.open(url, '_blank')
+  }
+  </script> 
 
 <style scoped>
 /* 最重要的修复：添加全屏背景容器 */
@@ -408,6 +638,19 @@ onUnmounted(stopAutoScroll)
   font-size: 13px;
   color: #8b5a2b;
   opacity: 0.9;
+  line-height: 1.4;
+}
+
+/* 文件大小和下载次数样式 */
+.item-content p:nth-of-type(1) {  /* 文件大小 */
+  color: #666;
+  font-size: 12px;
+}
+
+.item-content p:nth-of-type(2) {  /* 下载次数 */
+  color: #d4a574;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .carousel-btn {
@@ -800,5 +1043,58 @@ onUnmounted(stopAutoScroll)
   .list-item {
     font-size: 13px;
   }
+
+  /* 下载按钮样式 */
+.download-btn {
+  margin-top: 12px;
+  padding: 10px 18px;
+  background: linear-gradient(135deg, #d4a574, #c8956a);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  min-width: 140px;
+  box-shadow: 0 4px 8px rgba(139, 90, 43, 0.2);
+}
+
+.download-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #c8956a, #b8845a);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 15px rgba(139, 90, 43, 0.3);
+}
+
+.download-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 5px rgba(139, 90, 43, 0.2);
+}
+
+.download-btn:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  opacity: 0.7;
+}
+
+/* 响应式调整下载按钮 */
+@media (max-width: 768px) {
+  .download-btn {
+    padding: 8px 14px;
+    font-size: 13px;
+    min-width: 120px;
+  }
+}
+
+@media (max-width: 480px) {
+  .download-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    min-width: 100px;
+  }
+}
+  
 }
 </style>
