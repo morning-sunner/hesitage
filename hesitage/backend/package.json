@@ -20,7 +20,6 @@
     "jsonwebtoken": "^9.0.0",
     "morgan": "~1.9.1",
     "nodemailer": "^6.9.3",
-<<<<<<< HEAD
     "pg": "^8.16.3"
   },
   "main": "app.js",
@@ -28,9 +27,4 @@
   "author": "",
   "license": "ISC",
   "description": ""
-=======
-    "pg": "^8.7.1",
-    "uuid": "^9.0.0"
-  }
->>>>>>> badedf227543cbf4d3d13db208b7c926c3c85ee5
 }
