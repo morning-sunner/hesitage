@@ -15,6 +15,7 @@ var heritageRouter = require('./routes/heritage');
 var spatialRouter = require('./routes/spatial');
 var statisticsRouter = require('./routes/statistics');
 var apiRouter = require('./routes/api');
+var pdfRouter = require('./routes/pdfRoutes');
 
 var app = express();
 
@@ -77,6 +78,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/heritage', heritageRouter);
 app.use('/api/spatial', spatialRouter);
 app.use('/api/statistics', statisticsRouter);
+app.use('/api', pdfRouter);
 app.use('/api', apiRouter);
 
 

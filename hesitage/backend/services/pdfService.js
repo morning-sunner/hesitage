@@ -14,9 +14,7 @@ class PdfService {
           id, 
           file_name,
           upload_time,
-          LENGTH(file_data) as file_size,
-          created_at, 
-          updated_at
+          LENGTH(file_data) as file_size
         FROM pdf_files 
         ORDER BY id 
         LIMIT $1 OFFSET $2
