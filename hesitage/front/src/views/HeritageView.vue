@@ -105,7 +105,7 @@
         <div class="card-grid">
           <div
             v-for="item in paginatedItems"
-            :key="item.id"
+            :key="String(item.id)"
             class="heritage-card"
             @click="selectItem(item)"
           >
@@ -118,7 +118,10 @@
             <div class="card-info">
               <h3 class="card-name">{{ item.name }}</h3>
               <p class="card-category">{{ item.category }}</p>
-              <p class="card-location">{{ item.location }}</p>
+              <p class="card-location">
+                {{ item.location }}
+                <span v-if="item.city">· {{ item.city }}</span>
+              </p>
             </div>
           </div>
         </div>
@@ -136,17 +139,80 @@
       </div>
     </div>
 
-    <!-- 详情模态框 -->
-    <el-dialog v-model="showDetail" :title="selectedItem?.name" width="600px">
-      <div v-if="selectedItem" class="detail-content">
-        <img :src="selectedItem.image" :alt="selectedItem.name" class="detail-image" />
-        <div class="detail-info">
-          <p><strong>分类：</strong>{{ selectedItem.category }}</p>
-          <p><strong>地区：</strong>{{ selectedItem.location }}</p>
-          <p><strong>简介：</strong>{{ selectedItem.description }}</p>
-          <p v-if="selectedItem.significance" class="significance">
-            <strong>文化意义：</strong>{{ selectedItem.significance }}
-          </p>
+    <!-- 详情弹窗：详情页同款风格 + 高德地图 -->
+    <el-dialog
+      v-model="showDetail"
+      :show-close="false"
+      append-to-body
+      top="4vh"
+      width="min(1400px, 96vw)"
+      class="heritage-detail-dialog"
+      @closed="onDialogClosed"
+    >
+      <!-- 自定义头部 -->
+      <template #header="{ close }">
+        <div class="detail-header">
+          <button class="back-btn" @click="close()">
+            <span class="back-icon">←</span>
+            返回
+          </button>
+          <div class="detail-title">结果详情</div>
+        </div>
+      </template>
+
+      <div v-if="selectedItem" class="detail-surface">
+        <div class="detail-container">
+          <div class="detail-content">
+            <div class="detail-img-container">
+              <img
+                v-if="selectedItem.image"
+                :src="selectedItem.image"
+                class="detail-img"
+                :alt="selectedItem.name"
+              />
+              <div v-else class="detail-img detail-img-placeholder"></div>
+            </div>
+
+            <div class="info-area">
+              <div class="info-item">
+                <div class="info-label">非遗名称：</div>
+                <div class="info-value">{{ selectedItem.name }}</div>
+              </div>
+
+              <div class="info-item">
+                <div class="info-label">分类：</div>
+                <div class="info-value">{{ selectedItem.category }}</div>
+              </div>
+
+              <div class="info-item">
+                <div class="info-label">地区：</div>
+                <div class="info-value">
+                  {{ selectedItem.region || selectedItem.location }}
+                  <span v-if="!selectedItem.region && selectedItem.city"> · {{ selectedItem.city }}</span>
+                </div>
+              </div>
+
+              <div class="info-item">
+                <div class="info-label">相关信息：</div>
+                <div class="info-value">
+                  <p class="p">{{ selectedItem.intro || selectedItem.description || '' }}</p>
+                  <p v-if="selectedItem.significance" class="p">{{ selectedItem.significance }}</p>
+                </div>
+              </div>
+
+              <div class="info-item map-area">
+                <div class="info-label">地理位置：</div>
+
+                <div class="map-wrap">
+                  <div ref="mapEl" class="map-img"></div>
+
+                  <div v-if="mapError" class="map-fallback">地图加载失败</div>
+                  <div v-else-if="!hasCoords(selectedItem)" class="map-fallback">暂无经纬度数据</div>
+                  <div v-else-if="!AMAP_KEY" class="map-fallback">缺少高德 Key</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </el-dialog>
@@ -154,20 +220,62 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onBeforeUnmount, nextTick, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import NavBar from '../components/NavBar.vue'
 import { api } from '../utils/api'
 
-// 数据
+declare global {
+  interface Window {
+    AMap?: any
+  }
+}
+
+/** ====== 后端地址配置 ======
+ * 推荐你在 front/.env.development 里加：
+ * VITE_API_ORIGIN=http://localhost:3000
+ * VITE_API_BASE=/api
+ *
+ * 这样：
+ * - 接口：  http://localhost:3000/api/...
+ * - 图片：  http://localhost:3000/uploads/...
+ */
+const API_ORIGIN = (import.meta as any).env?.VITE_API_ORIGIN as string | undefined
+const API_BASE = ((import.meta as any).env?.VITE_API_BASE as string | undefined) || '/api'
+
+function joinUrl(a: string, b: string) {
+  const left = a.replace(/\/+$/, '')
+  const right = b.replace(/^\/+/, '')
+  return `${left}/${right}`
+}
+
+function apiUrl(path: string) {
+  // path: "/heritage/yrd/xxx"
+  const base = API_BASE.startsWith('/') ? API_BASE : `/${API_BASE}`
+  const p = path.startsWith('/') ? path : `/${path}`
+  if (API_ORIGIN) return joinUrl(API_ORIGIN, `${base}${p}`)
+  return `${base}${p}` // 走同源（配合 Vite proxy 时可用）
+}
+
+function assetUrl(p?: string | null) {
+  if (!p) return ''
+  if (/^https?:\/\//i.test(p)) return p
+  // /uploads/xxx => 拼到后端域名上
+  if (API_ORIGIN) return joinUrl(API_ORIGIN, p)
+  return p
+}
+
+
 const searchQuery = ref('')
 const selectedProvince = ref('all')
 const selectedCity = ref('')
 const selectedClass = ref<string | null>(null)
 const currentPage = ref(1)
 const pageSize = ref(9)
+
 const showDetail = ref(false)
 const selectedItem = ref<any>(null)
+
 const expandedProvinces = ref<string[]>([])
 const heritageItems = ref<any[]>([])
 const total = ref(0)
@@ -181,7 +289,6 @@ const provinces = ref([
   { id: '安徽', name: '安徽', count: 89 },
 ])
 
-// 地级市数据
 const citiesByProvince = ref<Record<string, string[]>>({
   '江苏': ['南通', '常州', '镇江', '扬州', '泰州', '徐州', '连云港', '淮安', '苏州', '无锡'],
   '浙江': ['杭州', '宁波', '温州', '嘉兴', '湖州', '绍兴', '金华', '衢州', '舟山', '台州'],
@@ -202,80 +309,83 @@ const heritageclasses = ref([
   { id: '风俗节庆', name: '风俗节庆' },
 ])
 
-// 获取非遗项目数据
+type HeritageItem = {
+  id: string | number
+  name: string
+  category: string
+  location: string
+  city?: string
+  region?: string
+  intro?: string
+  description?: string
+  significance?: string
+  image?: string
+  lng?: number | string | null
+  lat?: number | string | null
+  markerTitle?: string
+}
+
+const heritageItems = ref<HeritageItem[]>([])
+const total = ref(0)
+const loading = ref(false)
+
+// ✅ 从你的后端 /api/heritage/yrd 拉列表
 const fetchHeritageItems = async () => {
   try {
     loading.value = true
-    const params: Record<string, any> = {
-      limit: pageSize.value,
-      offset: (currentPage.value - 1) * pageSize.value
+
+    // 你的后端列表接口参数是 page/pageSize/keyword
+    const url = apiUrl(
+      `/heritage/yrd?page=${currentPage.value}&pageSize=${pageSize.value}&keyword=${encodeURIComponent(searchQuery.value || '')}`
+    )
+
+    const resp = await fetch(url)
+    const json = await resp.json()
+
+    if (!resp.ok || !json?.success) {
+      ElMessage.error(json?.message || '加载数据失败')
+      return
     }
-    
-    // 添加过滤参数
-    if (selectedProvince.value !== 'all') {
-      params.province = selectedProvince.value
-    }
-    if (selectedCity.value) {
-      params.city = selectedCity.value
-    }
-    if (selectedClass.value) {
-      params.category = selectedClass.value
-    }
-    if (searchQuery.value) {
-      params.search = searchQuery.value
-    }
-    
-    const response = await api.get('/heritage', { params })
-    
-    // api.get 直接返回响应体，不是 { data: 响应体 } 的结构
-    if (response.success) {
-      // 图片服务器地址
-      const imageServer = 'http://47.110.134.147'
-      // 转换数据格式以适应现有的模板
-      heritageItems.value = response.data.map((item: any) => ({
-        id: item.name_cn,
-        name: item.name_cn,
-        category: item.categorycn || '未分类',
-        location: item.place_merged || '未知',
-        province: item.provincecn,
-        image: item.image_url ? `${imageServer}${item.image_url}` : '/placeholder.png',
-        description: item.intro || '暂无描述',
-        significance: '国家级非物质文化遗产',
-        latitude: item.y,
-        longitude: item.x
-      }))
-      total.value = response.total
-    } else {
-      ElMessage.error('加载数据失败')
-    }
-  } catch (error) {
-    console.error('获取数据错误:', error)
+
+    heritageItems.value = (json.data || []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      category: row.category,
+      location: row.region || '未知',
+      region: row.region,
+      intro: row.intro,
+      lng: row.lng,
+      lat: row.lat,
+      image: assetUrl(row.image),
+      markerTitle: row.name,
+    }))
+
+    total.value = json.total || 0
+  } catch (e) {
+    console.error(e)
     ElMessage.error('加载数据失败，请重试')
   } finally {
     loading.value = false
   }
 }
 
-// 初始加载
 onMounted(() => {
   fetchHeritageItems()
 })
 
+
+
 const topTags = computed(() => {
-  const tags = []
+  const tags: string[] = []
   if (selectedProvince.value !== 'all') {
     tags.push(`地区：${selectedProvince.value}`)
   }
-  if (selectedCity.value) {
-    tags.push(`城市：${selectedCity.value}`)
-  }
+  if (selectedCity.value) tags.push(`城市：${selectedCity.value}`)
   if (selectedClass.value) {
     const cls = heritageclasses.value.find((c) => c.id === selectedClass.value)
     if (cls) tags.push(`分类：${cls.name}`)
   }
-  if (searchQuery.value) {
-    tags.push(`搜索：${searchQuery.value}`)
-  }
+  if (searchQuery.value) tags.push(`搜索：${searchQuery.value}`)
   return tags
 })
 
@@ -284,7 +394,6 @@ const paginatedItems = computed(() => {
   return heritageItems.value
 })
 
-// 方法
 const handleSearch = () => {
   currentPage.value = 1
   fetchHeritageItems()
@@ -305,9 +414,73 @@ const removeTopTag = (tag: string) => {
   fetchHeritageItems()
 }
 
-const selectItem = (item: any) => {
-  selectedItem.value = item
+/** ====== ✅ 弹窗 ====== */
+type YrdDetailApi = {
+  id: string
+  name: string
+  category: string
+  region: string
+  intro: string
+  lng?: string | number | null
+  lat?: string | number | null
+  image?: string | null
+  image_url?: string | null
+}
+
+function toNumber(v: any): number | undefined {
+  const n = typeof v === 'number' ? v : Number(v)
+  return Number.isFinite(n) ? n : undefined
+}
+
+async function fetchYrdDetail(id: string): Promise<Partial<HeritageItem> | null> {
+  try {
+    const url = apiUrl(`/heritage/yrd/${encodeURIComponent(id)}`)
+    const resp = await fetch(url)
+    const json = await resp.json()
+
+    if (!resp.ok || !json?.success) {
+      console.error('fetchYrdDetail failed:', json)
+      return null
+    }
+
+    const d = (json.data as YrdDetailApi) || null
+    if (!d) return null
+
+    const lng = toNumber(d.lng)
+    const lat = toNumber(d.lat)
+    const imgPath = d.image || d.image_url || ''
+
+    return {
+      id: d.id,
+      name: d.name,
+      category: d.category,
+      region: d.region,
+      intro: d.intro,
+      lng,
+      lat,
+      image: assetUrl(imgPath),
+      markerTitle: d.name,
+    }
+  } catch (e) {
+    console.error('fetchYrdDetail error:', e)
+    return null
+  }
+}
+
+const selectItem = async (item: HeritageItem) => {
+
+  selectedItem.value = {
+    ...item,
+    image: assetUrl(item.image || ''),
+  }
   showDetail.value = true
+  currentPage.value = 1
+
+
+  const detail = await fetchYrdDetail(String(item.id))
+  if (detail) {
+    selectedItem.value = { ...selectedItem.value, ...detail }
+  }
 }
 
 const toggleProvince = (provinceId: string) => {
@@ -317,6 +490,9 @@ const toggleProvince = (provinceId: string) => {
   } else {
     selectedProvince.value = provinceId
     selectedCity.value = ''
+    const idx = expandedProvinces.value.indexOf(provinceId)
+    if (idx >= 0) expandedProvinces.value.splice(idx, 1)
+    else expandedProvinces.value.push(provinceId)
   }
   currentPage.value = 1
   fetchHeritageItems()
@@ -345,9 +521,140 @@ const clearAllFilters = () => {
   currentPage.value = 1
   fetchHeritageItems()
 }
+
+/** ============ 高德地图（弹窗内） ============ */
+const mapEl = ref<HTMLDivElement | null>(null)
+let mapInstance: any = null
+const mapError = ref(false)
+
+const AMAP_KEY = (import.meta as any).env?.VITE_AMAP_KEY as string | undefined
+
+function hasCoords(item: any) {
+  const lng = toNumber(item?.lng)
+  const lat = toNumber(item?.lat)
+  return typeof lng === 'number' && typeof lat === 'number'
+}
+
+function destroyMap() {
+  try {
+    mapInstance?.destroy?.()
+  } catch {}
+  mapInstance = null
+}
+
+function loadAmapScript(key: string) {
+  return new Promise<void>((resolve, reject) => {
+    if (window.AMap) return resolve()
+
+    const exist = document.getElementById('amap-js')
+    if (exist) {
+      const timer = setInterval(() => {
+        if (window.AMap) {
+          clearInterval(timer)
+          resolve()
+        }
+      }, 100)
+      setTimeout(() => {
+        clearInterval(timer)
+        reject(new Error('AMap load timeout'))
+      }, 8000)
+      return
+    }
+
+    const s = document.createElement('script')
+    s.id = 'amap-js'
+    s.src = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(key)}`
+    s.async = true
+    s.onload = () => resolve()
+    s.onerror = () => reject(new Error('AMap script load error'))
+    document.body.appendChild(s)
+  })
+}
+
+async function initMap() {
+  try {
+    mapError.value = false
+
+    if (!AMAP_KEY) return
+    if (!mapEl.value) return
+    if (!selectedItem.value || !hasCoords(selectedItem.value)) {
+      destroyMap()
+      return
+    }
+
+    await loadAmapScript(AMAP_KEY)
+
+    const AMap = window.AMap
+    if (!AMap) {
+      mapError.value = true
+      return
+    }
+
+    destroyMap()
+
+    const lng = toNumber(selectedItem.value.lng)!
+    const lat = toNumber(selectedItem.value.lat)!
+    const center: [number, number] = [lng, lat]
+
+    mapInstance = new AMap.Map(mapEl.value, {
+      zoom: 12,
+      center,
+      viewMode: '2D',
+      resizeEnable: true,
+    })
+
+    const marker = new AMap.Marker({
+      position: center,
+      title: selectedItem.value.markerTitle || selectedItem.value.name || '标记点',
+    })
+    marker.setMap(mapInstance)
+
+    AMap.plugin(['AMap.ToolBar', 'AMap.Scale'], () => {
+      mapInstance.addControl(new AMap.ToolBar())
+      mapInstance.addControl(new AMap.Scale())
+    })
+
+    // 弹窗动画结束后再 resize 一次，避免白板
+    setTimeout(() => {
+      try {
+        mapInstance?.resize?.()
+      } catch {}
+    }, 50)
+  } catch {
+    mapError.value = true
+  }
+}
+
+watch(
+  () => showDetail.value,
+  async (open) => {
+    if (!open) return
+    await nextTick()
+    await initMap()
+  }
+)
+
+watch(
+  () => [selectedItem.value?.lng, selectedItem.value?.lat],
+  async () => {
+    if (!showDetail.value) return
+    await nextTick()
+    await initMap()
+  }
+)
+
+function onDialogClosed() {
+  destroyMap()
+  mapError.value = false
+}
+
+onBeforeUnmount(() => {
+  destroyMap()
+})
 </script>
 
 <style scoped>
+/* 你原样式全部保留（我只补了一个图片占位样式） */
 .container {
   position: relative;
   padding-top: 20px;
@@ -404,13 +711,11 @@ const clearAllFilters = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
   cursor: pointer;
   transition: all 0.3s ease;
   color: #5a4f45;
   border-radius: 4px;
-  padding-left: 8px;
-  padding-right: 8px;
+  padding: 10px 8px;
 }
 
 .category-item:hover {
@@ -427,7 +732,6 @@ const clearAllFilters = () => {
 .expand-icon {
   font-size: 12px;
   margin: 0 4px;
-  transition: transform 0.3s ease;
 }
 
 /* 城市列表 */
@@ -459,14 +763,12 @@ const clearAllFilters = () => {
   background-color: rgba(212, 165, 116, 0.25);
   color: #8b5a2b;
   font-weight: 600;
-  border-radius: 4px;
-}
-
-.city-name {
-  flex: 1;
 }
 
 .category-name {
+  flex: 1;
+}
+.city-name {
   flex: 1;
 }
 
@@ -483,18 +785,15 @@ const clearAllFilters = () => {
 .heritage-classes {
   background: linear-gradient(135deg, rgba(212, 165, 116, 0.1) 0%, rgba(200, 181, 150, 0.1) 100%);
 }
-
 .class-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-
 .heritage-tag {
   cursor: pointer;
   transition: all 0.3s ease;
 }
-
 :deep(.heritage-tag:hover) {
   opacity: 0.8;
 }
@@ -525,7 +824,6 @@ const clearAllFilters = () => {
   margin-bottom: 30px;
   min-height: 30px;
 }
-
 .tag {
   background-color: rgba(212, 165, 116, 0.2);
   color: #8b5a2b;
@@ -574,10 +872,7 @@ const clearAllFilters = () => {
 
 .card-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
@@ -655,45 +950,6 @@ const clearAllFilters = () => {
   color: #3d3328;
 }
 
-/* 详情模态框 */
-.detail-content {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.detail-image {
-  width: 100%;
-  height: 300px;
-  object-fit: cover;
-  border-radius: 8px;
-}
-
-.detail-info {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.detail-info p {
-  margin: 0;
-  font-size: 14px;
-  color: #5a4f45;
-  line-height: 1.6;
-}
-
-.detail-info strong {
-  color: #4a3f35;
-  font-weight: 600;
-}
-
-.significance {
-  background: rgba(212, 165, 116, 0.1);
-  padding: 12px;
-  border-radius: 6px;
-  border-left: 3px solid #d4a574;
-}
-
 /* 装饰元素 */
 .decoration-circle {
   position: absolute;
@@ -701,14 +957,12 @@ const clearAllFilters = () => {
   background: radial-gradient(circle, rgba(212, 165, 116, 0.2) 0%, rgba(212, 165, 116, 0) 70%);
   pointer-events: none;
 }
-
 .circle-1 {
   width: 300px;
   height: 300px;
   top: 100px;
   right: 50px;
 }
-
 .circle-2 {
   width: 400px;
   height: 400px;
@@ -716,17 +970,216 @@ const clearAllFilters = () => {
   left: 100px;
 }
 
-/* 响应式设计 */
+/* ======== 弹窗：详情页同款风格 + 背景层 ======== */
+:deep(.heritage-detail-dialog) {
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 16px;
+}
+:deep(.heritage-detail-dialog .el-dialog__header) {
+  padding: 0;
+  margin: 0;
+}
+:deep(.heritage-detail-dialog .el-dialog__body) {
+  padding: 0;
+}
+
+.detail-surface {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.detail-surface::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url('/figures/bg-header.jpg') center / cover no-repeat;
+  transform: scale(1.04);
+  filter: blur(1.2px) saturate(1.02);
+  opacity: 0.95;
+  z-index: -2;
+  pointer-events: none;
+}
+
+.detail-surface::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 18% 8%,
+      rgba(255,255,255,0.45) 0%,
+      rgba(255,255,255,0.16) 45%,
+      rgba(0,0,0,0.10) 100%),
+    linear-gradient(180deg,
+      rgba(245,242,234,0.18) 0%,
+      rgba(245,242,234,0.50) 55%,
+      rgba(245,242,234,0.68) 100%);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.detail-container {
+  width: 100%;
+  margin: 0;
+  background: rgba(255, 248, 235, 0.62);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  border-radius: 16px;
+  padding: 34px;
+  box-shadow: 0 14px 34px rgba(0,0,0,0.10);
+  border: 1px solid rgba(230, 200, 155, 0.50);
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(230, 200, 155, 0.55);
+  border-radius: 12px;
+
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.detail-title {
+  font-size: 20px;
+  font-weight: bold;
+  color: #8b4513;
+  padding: 6px 10px;
+  border-left: 4px solid #c29e6d;
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  background: rgba(139, 69, 19, 0.10);
+  color: #6d3811;
+  border: 1px solid rgba(139, 69, 19, 0.20);
+
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+.back-btn:hover {
+  background: rgba(139, 69, 19, 0.16);
+  transform: translateY(-1px);
+}
+.back-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.detail-content {
+  display: flex;
+  gap: 30px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+}
+
+.detail-img-container {
+  flex: 0 0 280px;
+}
+
+.detail-img {
+  width: 100%;
+  height: 320px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid rgba(230, 200, 155, 0.8);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.10);
+}
+
+.detail-img-placeholder {
+  background: rgba(240, 230, 214, 0.65);
+}
+
+.info-area {
+  flex: 1;
+  min-width: 300px;
+}
+
+.info-item {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: flex-start;
+}
+
+.info-label {
+  font-size: 16px;
+  font-weight: bold;
+  color: #ffffff;
+  background-color: #7d4821;
+  padding: 6px 15px;
+  min-width: 120px;
+  text-align: center;
+  border-radius: 6px;
+  margin-right: 15px;
+  flex-shrink: 0;
+}
+
+.info-value {
+  font-size: 16px;
+  line-height: 1.9;
+  color: #3a2618;
+  flex: 1;
+
+  padding: 14px 18px;
+  background: rgba(252, 251, 199, 0.30);
+  border-radius: 12px;
+  border: 1px solid rgba(230, 200, 155, 0.28);
+}
+
+.p {
+  margin-bottom: 12px;
+}
+
+.map-area {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px dashed rgba(230, 200, 155, 0.9);
+}
+
+.map-wrap {
+  position: relative;
+  flex: 1;
+}
+
+.map-img {
+  width: 100%;
+  max-width: 760px;
+  height: 320px;
+  border-radius: 12px;
+  border: 1px solid rgba(230, 200, 155, 0.8);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.10);
+  background: rgba(240, 230, 214, 0.65);
+}
+
+.map-fallback {
+  margin-top: 10px;
+  color: #8b4513;
+  font-size: 13px;
+}
+
 @media (max-width: 1024px) {
   .main-content {
     gap: 20px;
     padding: 0 30px;
   }
-
   .sidebar {
     width: 240px;
   }
-
   .card-grid {
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 20px;
@@ -739,18 +1192,36 @@ const clearAllFilters = () => {
     gap: 20px;
     padding: 0 20px;
   }
-
   .sidebar {
     width: 100%;
   }
-
   .card-grid {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 15px;
   }
-
   .card-image-wrapper {
     height: 150px;
+  }
+
+  .detail-content {
+    flex-direction: column;
+  }
+  .detail-img-container {
+    margin: 0 auto;
+    flex: 1;
+    width: 100%;
+    max-width: 420px;
+  }
+  .info-item {
+    flex-direction: column;
+  }
+  .info-label {
+    margin-bottom: 10px;
+    margin-right: 0;
+    width: 100%;
+  }
+  .detail-container {
+    padding: 18px;
   }
 }
 </style>
