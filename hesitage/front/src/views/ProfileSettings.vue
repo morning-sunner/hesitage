@@ -47,7 +47,7 @@
     <!-- 主体 -->
     <div class="page-shell">
       <div class="settings-layout">
-        <!-- 左侧菜单（样式不动，用 activeTab 切换） -->
+        <!-- 左侧菜单 -->
         <aside class="settings-side">
           <button
             v-for="tab in settingsTabs"
@@ -75,34 +75,33 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import SecuritySettingsContent from './settings/SecuritySettings.vue'
-import PrivacySettingsContent from './settings/PrivacySettings.vue'
+import SupportFeedbackSettingsContent from './settings/SupportFeedbackSettings.vue'
 import LoginSettingsContent from './settings/LoginSettings.vue'
 import NavBar from '../components/NavBar.vue'
 
 const router = useRouter()
 const route = useRoute()
 
-// 状态管理
 const activeTab = ref((route.query.tab as string) || 'security')
 const activePath = ref(route.path)
 const fileInputRef = ref<HTMLInputElement>()
 const userEmail = ref(localStorage.getItem('userEmail') || 'user@example.com')
 const avatarUrl = ref(localStorage.getItem('avatarUrl') || '')
 
-// 设置 Tab 列表
 const settingsTabs = [
   { id: 'security', label: '账户与安全' },
-  { id: 'privacy', label: '隐私设置' },
+  { id: 'privacy', label: '帮助与反馈' }, 
   { id: 'login', label: '登录管理' }
 ]
 
-// 计算属性：当前 Tab 的组件
+
 const currentTabComponent = computed(() => {
   switch (activeTab.value) {
     case 'security':
       return SecuritySettingsContent
     case 'privacy':
-      return PrivacySettingsContent
+      return SupportFeedbackSettingsContent
+
     case 'login':
       return LoginSettingsContent
     default:
@@ -110,11 +109,9 @@ const currentTabComponent = computed(() => {
   }
 })
 
-// 导航方法
 const goHome = () => router.push('/')
 const goSettings = () => router.push('/profile/settings')
 
-// 头像上传处理
 const onAvatarClick = () => {
   fileInputRef.value?.click()
 }
@@ -133,7 +130,6 @@ const onFileChange = (event: Event) => {
   }
 }
 
-// 初始化
 onMounted(() => {
   activePath.value = route.path
   enableFullBleed()
@@ -143,7 +139,6 @@ onBeforeUnmount(() => {
   disableFullBleed()
 })
 
-/** 启用/禁用全屏模式 */
 const APP_CLASS = 'app-full-bleed'
 const BODY_CLASS = 'profile-full-bleed'
 
@@ -159,7 +154,6 @@ function disableFullBleed() {
 </script>
 
 <style scoped>
-/* ✅ 与收藏页一致：解除 #app 全局 max-width/padding（关键） */
 :global(#app.app-full-bleed) {
   max-width: none !important;
   width: 100% !important;
@@ -174,7 +168,6 @@ function disableFullBleed() {
 }
 
 .settings-page * {
-  
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -188,7 +181,7 @@ function disableFullBleed() {
 }
 
 .settings-page {
-  min-width: 1400px;
+  width: 100%;
   font-family: "微软雅黑", sans-serif;
   color: #3a2618;
   min-height: 100vh;
@@ -346,7 +339,6 @@ function disableFullBleed() {
   font-weight: 750;
   box-shadow: 0 8px 16px rgba(0,0,0,0.06);
 }
-
 .nav-home:hover {
   border-color: rgba(194, 158, 109, 0.95);
   background: rgba(255, 255, 255, 0.84);
@@ -375,19 +367,17 @@ function disableFullBleed() {
   border-bottom: 2px solid transparent;
   padding: 10px 6px;
 }
-
 .nav-item.active {
   color: #8b4513;
   font-weight: 900;
   border-bottom: 2px solid rgba(139, 69, 19, 0.9);
 }
-
 .nav-item:hover:not(.active) {
   color: #8b4513;
   transform: translateY(-1px);
 }
 
-/* 页面主体 - 白底外壳：与收藏页、资料页统一 */
+/* 页面主体 - 白底外壳 */
 .page-shell {
   width: min(1680px, 96vw);
   margin: 0 auto 60px;
@@ -432,13 +422,11 @@ function disableFullBleed() {
   transition: all 0.3s ease;
   letter-spacing: 0.5px;
 }
-
 .side-item:hover {
   background: linear-gradient(135deg, #f5e6d3 0%, #faf4ed 100%);
   color: #8b4513;
   transform: translateX(2px);
 }
-
 .side-item.active {
   background: linear-gradient(135deg, #c9916f 0%, #d4a574 100%);
   color: white;
@@ -455,18 +443,64 @@ function disableFullBleed() {
   min-height: 500px;
 }
 
-/* 响应式设计：与资料页、收藏页口径对齐 */
+:deep(.security-settings) {
+  width: 100%;
+  padding: 10px 6px;
+}
+
+:deep(.security-settings .form-row) {
+  display: grid;
+  grid-template-columns: 140px minmax(280px, 620px);
+  column-gap: 22px;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 0;
+}
+
+:deep(.security-settings .form-label) {
+  text-align: right;
+  font-size: 15px;
+  font-weight: 750;
+  color: #3a2618;
+}
+
+:deep(.security-settings .input) {
+  width: 100%;
+  height: 44px;
+  border-radius: 10px;
+}
+
+:deep(.security-settings .hint-row) {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* 保存按钮：对齐到输入列的右侧（更协调） */
+:deep(.security-settings .actions) {
+  display: grid;
+  grid-template-columns: 140px minmax(280px, 620px);
+  justify-content: center;
+  padding-top: 22px;
+}
+:deep(.security-settings .save-btn) {
+  justify-self: end;
+}
+
 @media (max-width: 720px) {
   .username-input { right: 16px; width: 200px; }
   .header h1 { left: 16px; }
 }
+
 @media (max-width: 480px) {
   .header { height: 210px; }
   .username-input { top: 150px; right: 20px; width: calc(100% - 40px); }
+
   .nav { gap: 8px; padding: 10px 10px; }
   .nav-home { padding: 8px 10px; font-size: 12px; }
   .nav-item { font-size: 12px; gap: 2px; padding: 10px 4px; }
-  
+
   .nav-links {
     width: 100%;
     flex-wrap: wrap;
@@ -497,6 +531,23 @@ function disableFullBleed() {
   .settings-main {
     padding: 20px;
     min-height: auto;
+  }
+
+  /* 小屏：表单改纵向 */
+  :deep(.security-settings .form-row) {
+    grid-template-columns: 1fr;
+    row-gap: 10px;
+    justify-content: stretch;
+  }
+  :deep(.security-settings .form-label) {
+    text-align: left;
+  }
+  :deep(.security-settings .actions) {
+    grid-template-columns: 1fr;
+    justify-content: stretch;
+  }
+  :deep(.security-settings .save-btn) {
+    justify-self: start;
   }
 }
 </style>
