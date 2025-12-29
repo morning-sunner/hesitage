@@ -227,12 +227,12 @@ const fetchHeritageItems = async () => {
     
     const response = await api.get('/heritage', { params })
     
-    // API 响应结构为 { data: { success, data, total } }
-    if (response.data.success) {
+    // api.get 直接返回响应体，不是 { data: 响应体 } 的结构
+    if (response.success) {
       // 图片服务器地址
       const imageServer = 'http://47.110.134.147'
       // 转换数据格式以适应现有的模板
-      heritageItems.value = response.data.data.map((item: any) => ({
+      heritageItems.value = response.data.map((item: any) => ({
         id: item.name_cn,
         name: item.name_cn,
         category: item.categorycn || '未分类',
@@ -244,7 +244,7 @@ const fetchHeritageItems = async () => {
         latitude: item.y,
         longitude: item.x
       }))
-      total.value = response.data.total
+      total.value = response.total
     } else {
       ElMessage.error('加载数据失败')
     }
