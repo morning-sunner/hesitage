@@ -43,6 +43,10 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// 配置上传目录的静态文件服务
+// 用户上传的图片可以通过 /uploads/images/xxx.jpg 访问
+app.use('/uploads', express.static(path.join(__dirname, '..', '..', 'public', 'uploads')));
+
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/api/auth', authRouter);

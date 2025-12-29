@@ -4,40 +4,83 @@ const db = require('../config/database');
 
 /**
  * GET /api/heritage
- * 获取所有非遗项目
+ * 获取所有非遗项目（从长三角-全部_地点唯一_地级市表）
  */
 router.get('/', async (req, res) => {
   try {
-    const result = await db.query(`
+    const { province, category, search, limit = 100, offset = 0 } = req.query;
+    
+    let query = `
       SELECT 
-        proj_num,
-        name, 
-        name_en,
-        category, 
-        category_en,
-        location, 
-        location_en,
-        province,
-        province_en,
-        type,
-        type_en,
-        unit,
-        unit_en,
-        time,
-        longitude,
-        latitude,
-        region_4,
-        region_4_en,
-        region_7,
-        region_7_en
-      FROM shapefile.heritage_items
-      ORDER BY proj_num
-      LIMIT 100
-    `);
+        name_cn,
+        categorycn,
+        place_merged,
+        provincecn,
+        image_url,
+        intro,
+        x,
+        y
+      FROM shapefile."长三角-全部_地点唯一_地级市"
+      WHERE name_cn IS NOT NULL
+    `;
+    
+    const params = [];
+    let paramCount = 1;
+    
+    // 按省份过滤
+    if (province) {
+      query += ` AND provincecn = $${paramCount}`;
+      params.push(province);
+      paramCount++;
+    }
+    
+    // 按分类过滤
+    if (category) {
+      query += ` AND categorycn LIKE $${paramCount}`;
+      params.push(`%${category}%`);
+      paramCount++;
+    }
+    
+    // 搜索功能
+    if (search) {
+      query += ` AND (name_cn ILIKE $${paramCount} OR intro ILIKE $${paramCount})`;
+      params.push(`%${search}%`);
+      paramCount++;
+    }
+    
+    query += ` ORDER BY name_cn LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
+    params.push(limit, offset);
+    
+    const result = await db.query(query, params);
+    
+    // 获取总数
+    let countQuery = `SELECT COUNT(*) FROM shapefile."长三角-全部_地点唯一_地级市" WHERE name_cn IS NOT NULL`;
+    const countParams = [];
+    let countParamCount = 1;
+    
+    if (province) {
+      countQuery += ` AND provincecn = $${countParamCount}`;
+      countParams.push(province);
+      countParamCount++;
+    }
+    if (category) {
+      countQuery += ` AND categorycn LIKE $${countParamCount}`;
+      countParams.push(`%${category}%`);
+      countParamCount++;
+    }
+    if (search) {
+      countQuery += ` AND (name_cn ILIKE $${countParamCount} OR intro ILIKE $${countParamCount})`;
+      countParams.push(`%${search}%`);
+      countParamCount++;
+    }
+    
+    const countResult = await db.query(countQuery, countParams);
+    const total = parseInt(countResult.rows[0].count);
+    
     res.json({
       success: true,
       data: result.rows,
-      total: result.rows.length
+      total: total
     });
   } catch (error) {
     console.error('获取非遗项目失败:', error);
