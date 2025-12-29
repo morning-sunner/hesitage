@@ -17,8 +17,12 @@ var statisticsRouter = require('./routes/statistics');
 var apiRouter = require('./routes/api');
 var pdfRoutes = require('./routes/pdfRoutes');
 
+var supportRouter = require('./routes/support');
+
+
 var app = express();
 
+<<<<<<< HEAD
 const cors = require('cors');
 
 // 替换你的自定义CORS中间件
@@ -34,6 +38,20 @@ app.use(cors({
 // 数据库连接测试
 const db = require('./config/database');
 
+=======
+
+// CORS 中间件
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+>>>>>>> badedf227543cbf4d3d13db208b7c926c3c85ee5
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -45,6 +63,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+<<<<<<< HEAD
 // 健康检查接口
 app.get('/health', (req, res) => {
   res.json({
@@ -65,6 +84,15 @@ app.get('/api/pdf/test', (req, res) => {
 });
 
 // 注册所有路由
+=======
+// ✅ 映射 backend/图片 到 /uploads/images
+app.use('/uploads/images', express.static(path.join(__dirname, '图片')));
+
+// ✅ main 原来的上传目录映射（保留）
+app.use('/uploads', express.static(path.join(__dirname, '..', '..', 'public', 'uploads')));
+
+
+>>>>>>> badedf227543cbf4d3d13db208b7c926c3c85ee5
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/api/auth', authRouter);
@@ -132,6 +160,9 @@ app.get('/api/pdf/files', async (req, res) => {
   }
 });
 
+app.use('/api/support', supportRouter);
+
+
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
   next(createError(404));
@@ -157,6 +188,7 @@ app.use(function(err, req, res, next) {
   res.render('error');
 });
 
+<<<<<<< HEAD
 // 获取端口
 const PORT = process.env.PORT || 3000;
 
@@ -201,3 +233,8 @@ process.on('SIGTERM', () => {
 });
 
 module.exports = app;
+=======
+
+
+module.exports = app;
+>>>>>>> badedf227543cbf4d3d13db208b7c926c3c85ee5

@@ -46,14 +46,13 @@
 
     <!-- 白底主体 -->
     <div class="page-shell">
-      <!-- ✅ 收藏未公开：直接占位 -->
+      <!-- ✅ 彻底去除隐私影响：永远展示收藏（保留原结构，v-if 永远走 else） -->
       <div v-if="!canShowFavorites" class="privacy-locked">
         <div class="lock-title">收藏已设为不公开</div>
         <div class="lock-desc">你可以在「设置 → 隐私设置」中开启“公开我的收藏”。</div>
         <button class="lock-btn" type="button" @click="goSettings">去设置</button>
       </div>
 
-      <!-- ✅ 收藏公开：正常展示 -->
       <div v-else class="collection-container">
         <!-- 左箭头 -->
         <button
@@ -70,10 +69,9 @@
         <div ref="listRef" class="collection-list" @scroll.passive="onListScroll">
           <div v-for="item in items" :key="item.id" class="collection-item">
             <div class="collection-map">
-              <!-- ✅ 位置未公开：不加载地图，直接占位 -->
+              <!-- ✅ 彻底去除隐私影响：永远走地图逻辑（保留原结构，v-if 永远 false） -->
               <div v-if="!canShowLocation" class="map-fallback">位置信息已隐藏</div>
 
-              <!-- ✅ 位置公开：正常地图 -->
               <template v-else>
                 <div class="map-real" :ref="(el) => setMapEl(item.id, el as HTMLDivElement | null)"></div>
                 <div v-if="mapError[item.id]" class="map-fallback">地图加载失败（网络或 Key 问题）</div>
@@ -115,35 +113,6 @@ declare global {
   }
 }
 
-type ProfileVisibility = 'public' | 'private'
-type PrivacyState = {
-  visibility: ProfileVisibility
-  showInfo: boolean
-  showFavorites: boolean
-  showLocation: boolean
-}
-
-function readPrivacy(): PrivacyState {
-  const visibility = ((localStorage.getItem('privacy_profile_visibility') as ProfileVisibility) || 'public')
-  const isPrivate = visibility === 'private'
-
-  const showInfo = !isPrivate && (localStorage.getItem('privacy_show_info') ?? '1') === '1'
-  const showFavorites = !isPrivate && (localStorage.getItem('privacy_show_favorites') ?? '1') === '1'
-  const showLocation = !isPrivate && (localStorage.getItem('privacy_show_location') ?? '1') === '1'
-
-  return { visibility, showInfo, showFavorites, showLocation }
-}
-
-const privacy = ref<PrivacyState>(readPrivacy())
-function syncPrivacy(_e?: Event) {
-  privacy.value = readPrivacy()
-}
-
-function onStorage(e: StorageEvent) {
-  if (!e.key) return
-  if (e.key.startsWith('privacy_')) syncPrivacy()
-}
-
 type CollectionItem = {
   id: string
   title: string
@@ -156,8 +125,9 @@ const route = useRoute()
 const router = useRouter()
 const activeTab = computed(() => route.path)
 
-const canShowFavorites = computed(() => privacy.value.visibility === 'public' && privacy.value.showFavorites)
-const canShowLocation = computed(() => privacy.value.visibility === 'public' && privacy.value.showLocation)
+/** ✅ 彻底去除隐私设置影响：收藏、位置永远可见 */
+const canShowFavorites = computed(() => true)
+const canShowLocation = computed(() => true)
 
 /** ✅ 仅本页解除 #app 的 max-width/padding 限制（关键） */
 const APP_CLASS = 'app-full-bleed'
@@ -264,7 +234,7 @@ function applyCols() {
     listRef.value.style.setProperty('--gap', '22px')
   }
 
-  if (canShowLocation.value) refreshMaps()
+  refreshMaps()
   updateArrowState()
 }
 
@@ -279,7 +249,7 @@ function updateArrowState() {
 
 function onListScroll() {
   updateArrowState()
-  if (canShowLocation.value) refreshMaps()
+  refreshMaps()
 }
 
 function getScrollStepPx() {
@@ -302,7 +272,7 @@ function scrollByPage(dir: 1 | -1) {
   el.scrollBy({ left: dir * step, behavior: 'smooth' })
   setTimeout(() => {
     updateArrowState()
-    if (canShowLocation.value) refreshMaps()
+    refreshMaps()
   }, 220)
 }
 
@@ -378,9 +348,6 @@ function refreshMaps() {
 }
 
 async function initAllMaps() {
-  // ✅ 不公开位置信息：绝不初始化地图
-  if (!canShowLocation.value) return
-
   if (!AMAP_KEY) {
     items.value.forEach((it) => (mapError[it.id] = true))
     return
@@ -449,10 +416,8 @@ const removeItem = async (id: string) => {
   delete mapError[id]
   items.value = items.value.filter((x) => x.id !== id)
   await nextTick()
-  if (canShowFavorites.value) {
-    applyCols()
-    updateArrowState()
-  }
+  applyCols()
+  updateArrowState()
 }
 
 const goDetail = (item: CollectionItem) => {
@@ -460,29 +425,8 @@ const goDetail = (item: CollectionItem) => {
 }
 
 function onWinResize() {
-  if (canShowFavorites.value) applyCols()
-}
-
-/** ✅ 隐私变化：即时刷新页面展示 + 地图启停 */
-watch([canShowFavorites, canShowLocation], async ([favOk, locOk]) => {
-  // 收藏不公开：直接销毁地图
-  if (!favOk) {
-    destroyAllMaps()
-    return
-  }
-
-  // 收藏公开但位置不公开：销毁地图
-  if (!locOk) {
-    destroyAllMaps()
-    return
-  }
-
-  // 收藏公开 + 位置公开：初始化地图
-  await nextTick()
-  await initAllMaps()
   applyCols()
-  updateArrowState()
-})
+}
 
 onMounted(async () => {
   enableFullBleed()
@@ -490,21 +434,11 @@ onMounted(async () => {
   userEmail.value = localStorage.getItem(LS_EMAIL_KEY) || ''
   avatarUrl.value = localStorage.getItem(LS_AVATAR_KEY) || ''
 
-  // ✅ 初始化同步隐私状态 & 监听变化
-  syncPrivacy()
-  window.addEventListener('storage', onStorage)
-  window.addEventListener('privacy-updated', syncPrivacy as EventListener)
-
   await nextTick()
 
-  if (canShowFavorites.value) {
-    applyCols()
-    updateArrowState()
-
-    if (canShowLocation.value) {
-      await initAllMaps()
-    }
-  }
+  applyCols()
+  updateArrowState()
+  await initAllMaps()
 
   window.addEventListener('resize', onWinResize)
 })
@@ -512,15 +446,12 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   disableFullBleed()
   window.removeEventListener('resize', onWinResize)
-  window.removeEventListener('storage', onStorage)
-  window.removeEventListener('privacy-updated', syncPrivacy as EventListener)
-
   destroyAllMaps()
 })
 </script>
 
 <style scoped>
-/* ✅ 仅本页生效：解除 #app 全局 max-width/padding（关键！） */
+/* 下面 style 一字不动：保持你原来的样式 */
 :global(#app.app-full-bleed) {
   max-width: none !important;
   width: 100% !important;
@@ -744,7 +675,6 @@ onBeforeUnmount(() => {
   transform: translateY(-1px);
 }
 
-/* 白底主体 */
 .page-shell {
   width: min(1680px, 96vw);
   margin: 0 auto 60px;
@@ -753,19 +683,12 @@ onBeforeUnmount(() => {
   border-radius: 22px;
   box-shadow: 0 18px 40px rgba(0,0,0,0.08);
   padding: 20px 18px 24px;
+  min-height: calc(100vh - 190px - 62px - 60px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* ✅ 隐私占位 */
-.privacy-locked {
-  width: min(880px, 92vw);
-  margin: 18px auto;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(240, 230, 214, 0.95);
-  border-radius: 16px;
-  box-shadow: 0 12px 28px rgba(0,0,0,0.06);
-  padding: 28px 24px;
-  text-align: center;
-}
 .lock-title {
   font-size: 18px;
   font-weight: 850;

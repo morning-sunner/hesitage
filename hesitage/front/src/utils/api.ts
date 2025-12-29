@@ -14,6 +14,63 @@ interface ApiResponse<T> {
 }
 
 /**
+ * 通用 API 方法
+ */
+export const api = {
+  /**
+   * 发送 GET 请求
+   */
+  get: async <T = any>(url: string, options?: any): Promise<{ data: T }> => {
+    const fullUrl = new URL(`${API_BASE}${url}`)
+    if (options?.params) {
+      Object.keys(options.params).forEach((key) => {
+        fullUrl.searchParams.append(key, options.params[key])
+      })
+    }
+    const res = await fetch(fullUrl.toString(), {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    })
+    return res.json()
+  },
+
+  /**
+   * 发送 POST 请求
+   */
+  post: async <T = any>(url: string, data?: any, options?: any): Promise<{ data: T }> => {
+    const res = await fetch(`${API_BASE}${url}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: data ? JSON.stringify(data) : undefined,
+    })
+    return res.json()
+  },
+
+  /**
+   * 发送 PUT 请求
+   */
+  put: async <T = any>(url: string, data?: any, options?: any): Promise<{ data: T }> => {
+    const res = await fetch(`${API_BASE}${url}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: data ? JSON.stringify(data) : undefined,
+    })
+    return res.json()
+  },
+
+  /**
+   * 发送 DELETE 请求
+   */
+  delete: async <T = any>(url: string, options?: any): Promise<{ data: T }> => {
+    const res = await fetch(`${API_BASE}${url}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+    })
+    return res.json()
+  },
+}
+
+/**
  * 用户认证 API
  */
 export const authApi = {

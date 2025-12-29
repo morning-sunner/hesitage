@@ -138,6 +138,8 @@ onMounted(() => {
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.18);
 }
 
 .bookmark:hover {
@@ -161,6 +163,19 @@ onMounted(() => {
   clip-path: polygon(0 0, 100% 0, 100% 80%, 50% 100%, 0 80%);
   z-index: 2;
 }
+
+.bookmark::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  background:
+    radial-gradient(120% 80% at 50% 10%, rgba(255,255,255,0.18), transparent 55%),
+    linear-gradient(180deg, rgba(0,0,0,0.00) 0%, rgba(0,0,0,0.18) 65%, rgba(0,0,0,0.28) 100%);
+  z-index: 1;
+}
+
 
 .bookmark-map {
   position: absolute;
@@ -267,21 +282,35 @@ onMounted(() => {
   transform: translateY(-2px);
 }
 
+/* 更亮、更柔的“雾化光晕”背景：不扎眼、但有层次 */
 .bookmark-jiangsu {
-  background: linear-gradient(135deg, rgba(255, 107, 107, 0.6), rgba(255, 159, 64, 0.6));
+  background:
+    radial-gradient(900px circle at 25% 22%, rgba(255, 120, 120, 0.28), transparent 58%),
+    radial-gradient(800px circle at 78% 76%, rgba(255, 186, 120, 0.22), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,0.70) 0%, rgba(248,249,252,0.55) 100%);
 }
 
 .bookmark-zhejiang {
-  background: linear-gradient(135deg, rgba(72, 219, 251, 0.6), rgba(118, 184, 255, 0.6));
+  background:
+    radial-gradient(900px circle at 25% 22%, rgba(90, 210, 235, 0.26), transparent 58%),
+    radial-gradient(800px circle at 78% 76%, rgba(130, 176, 255, 0.22), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,0.70) 0%, rgba(248,249,252,0.55) 100%);
 }
 
 .bookmark-anhui {
-  background: linear-gradient(135deg, rgba(162, 155, 254, 0.6), rgba(181, 131, 250, 0.6));
+  background:
+    radial-gradient(900px circle at 25% 22%, rgba(170, 160, 255, 0.26), transparent 58%),
+    radial-gradient(800px circle at 78% 76%, rgba(200, 160, 255, 0.22), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,0.70) 0%, rgba(248,249,252,0.55) 100%);
 }
 
 .bookmark-shanghai {
-  background: linear-gradient(135deg, rgba(255, 183, 77, 0.6), rgba(255, 143, 64, 0.6));
+  background:
+    radial-gradient(900px circle at 25% 22%, rgba(255, 205, 130, 0.26), transparent 58%),
+    radial-gradient(800px circle at 78% 76%, rgba(255, 160, 130, 0.20), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,0.70) 0%, rgba(248,249,252,0.55) 100%);
 }
+
 
 .circle-1 {
   top: 100px;
@@ -319,4 +348,192 @@ onMounted(() => {
     height: 300px;
   }
 }
+/* =========================
+   用 PNG 省域轮廓做“GIS 图层遮罩”
+   不改DOM/不动布局/不动逻辑
+========================= */
+
+.bookmark-map { display: none !important; }
+
+
+.bookmark::before{
+  content:'';
+  position:absolute;
+  left:50%;
+  top:42%;
+  width:92%;
+  height:86%;
+  transform: translate(-50%,-50%);
+  pointer-events:none;
+  z-index: 1;  /* 在背景之上，内容之下（你的标题/卡片在更高层） */
+
+  /* 省域内部的 WebGIS 感图层 */
+  background:
+    /* 省域淡填充（避免空） */
+    radial-gradient(120% 90% at 30% 25%, rgba(255,255,255,0.55), transparent 60%),
+    radial-gradient(90% 80% at 70% 70%, var(--t2, rgba(0,0,0,0.10)), transparent 58%),
+    radial-gradient(90% 80% at 35% 70%, var(--t1, rgba(0,0,0,0.08)), transparent 62%),
+
+    /* 点位（POI/采样点） */
+    radial-gradient(rgba(0,0,0,0.18) 1px, rgba(0,0,0,0) 1px),
+
+    /* 经纬网格 */
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.07) 0 1px, rgba(0,0,0,0) 1px 22px),
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.07) 0 1px, rgba(0,0,0,0) 1px 22px),
+
+    /* 等值线 */
+    repeating-radial-gradient(circle at 42% 46%,
+      rgba(0,0,0,0.10) 0 1px,
+      rgba(0,0,0,0) 1px 13px),
+
+    /* 选中扫光（active 时跑一次） */
+    linear-gradient(120deg,
+      rgba(255,255,255,0) 0%,
+      rgba(255,255,255,0.28) 50%,
+      rgba(255,255,255,0) 100%);
+
+  background-size:
+    auto,
+    auto,
+    auto,
+    16px 16px,
+    100% 22px,
+    22px 100%,
+    auto,
+    240% 100%;
+
+  background-position:
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    -140% 0;
+
+  opacity: 0.22;
+
+  /* 省界边缘更“像地图” */
+  filter:
+    drop-shadow(0 0 1px rgba(0,0,0,0.40))
+    drop-shadow(0 12px 22px rgba(0,0,0,0.12));
+
+  transition:
+    opacity 420ms cubic-bezier(.2,.9,.2,1),
+    transform 720ms cubic-bezier(.2,.9,.2,1);
+}
+
+/* 展开后更清晰 + 扫光 */
+.bookmark.active::before{
+  opacity: 0.55;
+  transform: translate(-50%,-50%) scale(1.02);
+  animation: gisSweep 1.35s cubic-bezier(.2,.9,.2,1) 1;
+}
+
+@keyframes gisSweep{
+  from{
+    background-position:
+      0 0,0 0,0 0,
+      0 0,
+      0 0,0 0,
+      0 0,
+      -140% 0;
+  }
+  to{
+    background-position:
+      0 0,0 0,0 0,
+      0 0,
+      0 0,0 0,
+      0 0,
+      140% 0;
+  }
+}
+
+/* 内容层级保证不被盖住 */
+.bookmark-title { z-index: 2; }
+.bookmark-stats { z-index: 3; }
+.bookmark::after { z-index: 4; }
+
+
+.bookmark-jiangsu::before{
+  -webkit-mask-image: url('/figures/JS.png');
+  mask-image: url('/figures/JS.png');
+}
+.bookmark-zhejiang::before{
+  -webkit-mask-image: url('/figures/ZJ.png');
+  mask-image: url('/figures/ZJ.png');
+}
+.bookmark-anhui::before{
+  -webkit-mask-image: url('/figures/AH.png');
+  mask-image: url('/figures/AH.png');
+}
+.bookmark-shanghai::before{
+  -webkit-mask-image: url('/figures/SH.png');
+  mask-image: url('/figures/SH.png');
+}
+
+.bookmark-jiangsu::before,
+.bookmark-zhejiang::before,
+.bookmark-anhui::before,
+.bookmark-shanghai::before{
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.bookmark-jiangsu { --t1: rgba(255,120,120,0.28); --t2: rgba(255,186,120,0.22); }
+.bookmark-zhejiang{ --t1: rgba(90,210,235,0.26);  --t2: rgba(130,176,255,0.22); }
+.bookmark-anhui    { --t1: rgba(170,160,255,0.26); --t2: rgba(200,160,255,0.22); }
+.bookmark-shanghai { --t1: rgba(255,205,130,0.26); --t2: rgba(255,160,130,0.20); }
+
+/* ===== 1) 省域图层整体更大、更明显 ===== */
+.bookmark::before{
+  /* 省域画层更大（absolute，不会影响布局排布） */
+  top: 43% !important;
+  width: 96% !important;
+  height: 90% !important;
+
+  /* 默认就更明显 */
+  opacity: 0.34 !important;
+
+  /* 省界更清晰（多重描边阴影） */
+  filter:
+    drop-shadow(0 0 1.6px rgba(0,0,0,0.55))
+    drop-shadow(0 0 0.9px rgba(255,255,255,0.28))
+    drop-shadow(0 18px 36px rgba(0,0,0,0.14)) !important;
+
+  /* ✅ 关键：用变量控制每省的“放大倍率/位置” */
+  -webkit-mask-size: auto var(--msy, 200%) !important;
+  mask-size: auto var(--msy, 200%) !important;
+
+  -webkit-mask-position: var(--mx, 50%) var(--my, 52%) !important;
+  mask-position: var(--mx, 50%) var(--my, 52%) !important;
+
+  -webkit-mask-repeat: no-repeat !important;
+  mask-repeat: no-repeat !important;
+
+  -webkit-mask-mode: alpha !important;
+  mask-mode: alpha !important;
+}
+
+/* 选中时再更明显一点 */
+.bookmark.active::before{
+  opacity: 0.78 !important;
+  transform: translate(-50%,-50%) scale(1.08) !important;
+}
+
+/* ===== 2) 针对你这四张“长画布”PNG：单独设放大倍率/位置 ===== */
+/* 这些数值是专门为“省域在中间、下方有水印/空白”的图准备的 */
+
+.bookmark-jiangsu  { --msy: 210%; --mx: 50%; --my: 52%; }
+.bookmark-zhejiang { --msy: 220%; --mx: 50%; --my: 53%; }
+.bookmark-anhui    { --msy: 200%; --mx: 50%; --my: 52%; }
+
+/* 上海通常更小：需要更大倍率 */
+.bookmark-shanghai { --msy: 200%; --mx: 50%; --my: 48%; }
+
 </style>
