@@ -43,6 +43,11 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// ✅ 把 E:\...\backend\图片 映射到 /uploads/images
+console.log('STATIC IMG DIR =', path.join(__dirname, '图片'));
+app.use('/uploads/images', express.static(path.join(__dirname, '图片')));
+
+
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/api/auth', authRouter);
@@ -69,6 +74,7 @@ app.use(function(err, req, res, next) {
   res.status(err.status || 500);
   res.render('error');
 });
+
 
 
 module.exports = app;
