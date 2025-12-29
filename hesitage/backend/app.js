@@ -43,9 +43,11 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ✅ 把 E:\...\backend\图片 映射到 /uploads/images
-console.log('STATIC IMG DIR =', path.join(__dirname, '图片'));
+// ✅ 映射 backend/图片 到 /uploads/images
 app.use('/uploads/images', express.static(path.join(__dirname, '图片')));
+
+// ✅ main 原来的上传目录映射（保留）
+app.use('/uploads', express.static(path.join(__dirname, '..', '..', 'public', 'uploads')));
 
 
 app.use('/', indexRouter);

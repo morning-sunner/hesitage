@@ -32,28 +32,29 @@
             <div
               v-for="province in provinces"
               :key="province.id"
-              :class="['category-item', { active: selectedProvince === province.id }]"
-              @click="toggleProvince(province.id)"
             >
-              <span class="category-name">{{ province.name }}</span>
-              <span v-if="province.id !== 'all'" class="expand-icon">
-                {{ expandedProvinces.includes(province.id) ? '▼' : '▶' }}
-              </span>
-              <span class="category-count">{{ province.count }}</span>
-            </div>
-
-            <!-- 地级市子项 -->
-            <div
-              v-if="selectedProvince !== 'all' && citiesByProvince[selectedProvince]"
-              class="cities-list"
-            >
+              <!-- 省份项 -->
               <div
-                v-for="city in citiesByProvince[selectedProvince]"
-                :key="city"
-                :class="['city-item', { active: selectedCity === city }]"
-                @click.stop="selectedCity = selectedCity === city ? '' : city"
+                :class="['category-item', { active: selectedProvince === province.id }]"
+                @click="toggleProvince(province.id)"
               >
-                <span class="city-name">{{ city }}</span>
+                <span class="category-name">{{ province.name }}</span>
+                <span v-if="province.id !== 'all'" class="expand-icon">
+                  {{ expandedProvinces.includes(province.id) ? '▼' : '▶' }}
+                </span>
+                <span class="category-count">{{ province.count }}</span>
+              </div>
+
+              <!-- 地级市子项 - 紧贴在省份下方 -->
+              <div v-if="selectedProvince === province.id && citiesByProvince[province.id]" class="cities-list">
+                <div
+                  v-for="city in citiesByProvince[province.id]"
+                  :key="city"
+                  :class="['city-item', { active: selectedCity === city }]"
+                  @click.stop="handleSelectCity(city)"
+                >
+                  <span class="city-name">{{ city }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -67,12 +68,21 @@
               v-for="cls in heritageclasses"
               :key="cls.id"
               :type="selectedClass === cls.id ? 'primary' : 'info'"
-              @click="selectedClass = selectedClass === cls.id ? null : cls.id"
+              @click="handleSelectClass(cls.id)"
               class="heritage-tag"
             >
               {{ cls.name }}
             </el-tag>
           </div>
+          <el-button
+            v-if="selectedClass || selectedProvince !== 'all' || selectedCity || searchQuery"
+            type="danger"
+            link
+            @click="clearAllFilters"
+            class="clear-filters-btn"
+          >
+            清除所有筛选
+          </el-button>
         </div>
       </div>
 
@@ -121,8 +131,9 @@
           <el-pagination
             v-model:current-page="currentPage"
             :page-size="pageSize"
-            :total="filteredItems.length"
+            :total="total"
             layout="prev, pager, next"
+            @current-change="fetchHeritageItems"
           />
         </div>
       </div>
@@ -209,8 +220,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, watch, onBeforeUnmount, nextTick, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import NavBar from '../components/NavBar.vue'
+import { api } from '../utils/api'
 
 declare global {
   interface Window {
@@ -264,33 +277,36 @@ const showDetail = ref(false)
 const selectedItem = ref<any>(null)
 
 const expandedProvinces = ref<string[]>([])
+const heritageItems = ref<any[]>([])
+const total = ref(0)
+const loading = ref(false)
 
 const provinces = ref([
   { id: 'all', name: '全部地区', count: 500 },
-  { id: 'jiangsu', name: '江苏', count: 134 },
-  { id: 'zhejiang', name: '浙江', count: 102 },
-  { id: 'shanghai', name: '上海', count: 35 },
-  { id: 'anhui', name: '安徽', count: 89 },
+  { id: '江苏', name: '江苏', count: 134 },
+  { id: '浙江', name: '浙江', count: 102 },
+  { id: '上海', name: '上海', count: 35 },
+  { id: '安徽', name: '安徽', count: 89 },
 ])
 
 const citiesByProvince = ref<Record<string, string[]>>({
-  jiangsu: ['南通', '常州', '镇江', '扬州', '泰州', '徐州', '连云港', '淮安', '苏州', '无锡'],
-  zhejiang: ['杭州', '宁波', '温州', '嘉兴', '湖州', '绍兴', '金华', '衢州', '舟山', '台州'],
-  shanghai: ['黄浦', '静安', '徐汇', '长宁', '普陀', '虹口', '杨浦', '浦东'],
-  anhui: ['合肥', '芜湖', '马鞍山', '安庆', '黄山', '阜阳', '六安', '亳州', '池州', '宣城'],
+  '江苏': ['南通', '常州', '镇江', '扬州', '泰州', '徐州', '连云港', '淮安', '苏州', '无锡'],
+  '浙江': ['杭州', '宁波', '温州', '嘉兴', '湖州', '绍兴', '金华', '衢州', '舟山', '台州'],
+  '上海': ['黄浦', '静安', '徐汇', '长宁', '普陀', '虹口', '杨浦', '浦东'],
+  '安徽': ['合肥', '芜湖', '马鞍山', '安庆', '黄山', '阜阳', '六安', '亳州', '池州', '宣城'],
 })
 
 const heritageclasses = ref([
-  { id: '1', name: '民间文学' },
-  { id: '2', name: '说唱艺曲' },
-  { id: '3', name: '体育游艺' },
-  { id: '4', name: '传统技艺' },
-  { id: '5', name: '工艺美术' },
-  { id: '6', name: '传统医药' },
-  { id: '7', name: '民俗' },
-  { id: '8', name: '传统戏剧' },
-  { id: '9', name: '音乐舞蹈' },
-  { id: '10', name: '风俗节庆' },
+  { id: '民间文学', name: '民间文学' },
+  { id: '说唱艺曲', name: '说唱艺曲' },
+  { id: '体育游艺', name: '体育游艺' },
+  { id: '传统技艺', name: '传统技艺' },
+  { id: '工艺美术', name: '工艺美术' },
+  { id: '传统医药', name: '传统医药' },
+  { id: '民俗', name: '民俗' },
+  { id: '传统戏剧', name: '传统戏剧' },
+  { id: '音乐舞蹈', name: '音乐舞蹈' },
+  { id: '风俗节庆', name: '风俗节庆' },
 ])
 
 type HeritageItem = {
@@ -309,26 +325,60 @@ type HeritageItem = {
   markerTitle?: string
 }
 
+const heritageItems = ref<HeritageItem[]>([])
+const total = ref(0)
+const loading = ref(false)
 
-const heritageItems = ref<HeritageItem[]>([
-  {
-    id: 'Ⅳ-28',   
-    name: '',   /** 京剧*/
-    category: '',        /** 传统戏剧*/
-    location: '', /** 上海 */
-    region: '', /** 上海市徐汇区 */
-    intro: '',
-    image: '',
-   
-  },
-])
+// ✅ 从你的后端 /api/heritage/yrd 拉列表
+const fetchHeritageItems = async () => {
+  try {
+    loading.value = true
+
+    // 你的后端列表接口参数是 page/pageSize/keyword
+    const url = apiUrl(
+      `/heritage/yrd?page=${currentPage.value}&pageSize=${pageSize.value}&keyword=${encodeURIComponent(searchQuery.value || '')}`
+    )
+
+    const resp = await fetch(url)
+    const json = await resp.json()
+
+    if (!resp.ok || !json?.success) {
+      ElMessage.error(json?.message || '加载数据失败')
+      return
+    }
+
+    heritageItems.value = (json.data || []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      category: row.category,
+      location: row.region || '未知',
+      region: row.region,
+      intro: row.intro,
+      lng: row.lng,
+      lat: row.lat,
+      image: assetUrl(row.image),
+      markerTitle: row.name,
+    }))
+
+    total.value = json.total || 0
+  } catch (e) {
+    console.error(e)
+    ElMessage.error('加载数据失败，请重试')
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchHeritageItems()
+})
+
 
 
 const topTags = computed(() => {
   const tags: string[] = []
   if (selectedProvince.value !== 'all') {
-    const province = provinces.value.find((p) => p.id === selectedProvince.value)
-    if (province) tags.push(`地区：${province.name}`)
+    tags.push(`地区：${selectedProvince.value}`)
   }
   if (selectedCity.value) tags.push(`城市：${selectedCity.value}`)
   if (selectedClass.value) {
@@ -339,36 +389,14 @@ const topTags = computed(() => {
   return tags
 })
 
-
-const filteredItems = computed(() => {
-  return heritageItems.value.filter((item) => {
-    if (
-      selectedProvince.value !== 'all' &&
-      item.location !== provinces.value.find((p) => p.id === selectedProvince.value)?.name
-    ) return false
-
-    if (selectedCity.value && item.city !== selectedCity.value) return false
-
-    if (selectedClass.value) {
-      const selectedClassName = heritageclasses.value.find((c) => c.id === selectedClass.value)?.name
-      if (!item.category.includes(selectedClassName || '')) return false
-    }
-
-    if (searchQuery.value && !item.name.toLowerCase().includes(searchQuery.value.toLowerCase())) {
-      return false
-    }
-    return true
-  })
-})
-
+// 分页数据 - 由于数据从 API 获取，已经分页，直接使用
 const paginatedItems = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  const end = start + pageSize.value
-  return filteredItems.value.slice(start, end)
+  return heritageItems.value
 })
 
 const handleSearch = () => {
   currentPage.value = 1
+  fetchHeritageItems()
 }
 
 const removeTopTag = (tag: string) => {
@@ -382,6 +410,8 @@ const removeTopTag = (tag: string) => {
   } else if (tag.startsWith('搜索：')) {
     searchQuery.value = ''
   }
+  currentPage.value = 1
+  fetchHeritageItems()
 }
 
 /** ====== ✅ 弹窗 ====== */
@@ -465,6 +495,31 @@ const toggleProvince = (provinceId: string) => {
     else expandedProvinces.value.push(provinceId)
   }
   currentPage.value = 1
+  fetchHeritageItems()
+}
+
+const handleSelectClass = (classId: string) => {
+  // 点击已选中的类别时取消选中，否则选中该类别
+  selectedClass.value = selectedClass.value === classId ? null : classId
+  currentPage.value = 1
+  fetchHeritageItems()
+}
+
+const handleSelectCity = (city: string) => {
+  // 点击已选中的城市时取消选中，否则选中该城市
+  selectedCity.value = selectedCity.value === city ? '' : city
+  currentPage.value = 1
+  fetchHeritageItems()
+}
+
+const clearAllFilters = () => {
+  // 清除所有筛选条件
+  searchQuery.value = ''
+  selectedProvince.value = 'all'
+  selectedCity.value = ''
+  selectedClass.value = null
+  currentPage.value = 1
+  fetchHeritageItems()
 }
 
 /** ============ 高德地图（弹窗内） ============ */
@@ -741,6 +796,19 @@ onBeforeUnmount(() => {
 }
 :deep(.heritage-tag:hover) {
   opacity: 0.8;
+}
+
+.clear-filters-btn {
+  display: block;
+  margin-top: 12px;
+  width: 100%;
+  text-align: center;
+  color: #f56c6c;
+}
+
+:deep(.clear-filters-btn:hover) {
+  color: #dd001b;
+  font-weight: 600;
 }
 
 /* 右侧内容区域 */
