@@ -155,9 +155,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import NavBar from '../components/NavBar.vue'
 import { api } from '../utils/api'
+
+const route = useRoute()
 
 // 数据
 const searchQuery = ref('')
@@ -201,6 +204,34 @@ const heritageclasses = ref([
   { id: '音乐舞蹈', name: '音乐舞蹈' },
   { id: '风俗节庆', name: '风俗节庆' },
 ])
+
+// 获取省份统计数据（从数据库）
+const fetchProvinceCounts = async () => {
+  try {
+    const response = await api.get('/heritage/statistics/by-province')
+    if (response.success && Array.isArray(response.data)) {
+      // response.data 返回数组 [{ province: '江苏', count: 134 }, ...]
+      const countMap = new Map<string, number>()
+      let totalCount = 0
+      
+      response.data.forEach((item: any) => {
+        const prov = item.province || ''
+        const count = parseInt(item.count) || 0
+        countMap.set(prov, count)
+        totalCount += count
+      })
+      
+      provinces.value = provinces.value.map(province => {
+        if (province.id === 'all') {
+          return { ...province, count: totalCount }
+        }
+        return { ...province, count: countMap.get(province.id) || 0 }
+      })
+    }
+  } catch (error) {
+    console.error('获取统计数据失败:', error)
+  }
+}
 
 // 获取非遗项目数据
 const fetchHeritageItems = async () => {
@@ -258,6 +289,18 @@ const fetchHeritageItems = async () => {
 
 // 初始加载
 onMounted(() => {
+  // 从 URL 查询参数读取筛选条件
+  if (route.query.province) {
+    selectedProvince.value = route.query.province as string
+  }
+  if (route.query.city) {
+    selectedCity.value = route.query.city as string
+  }
+  if (route.query.category) {
+    selectedClass.value = route.query.category as string
+  }
+  
+  fetchProvinceCounts()  // 先获取统计数据
   fetchHeritageItems()
 })
 
