@@ -2,22 +2,73 @@
   <div class="map-container">
     <NavBar />
     <div class="map-wrapper">
+      <!-- 左侧控制面板 -->
+      <div class="side-left">
+        <div class="side-card">
+          <div class="side-title">地图工具</div>
+          <button class="side-btn" :class="{ active: showLabels }" @click="toggleLabels">
+            <span>🖊️ 显示标签</span>
+          </button>
+          <button class="side-btn" @click="resetView">
+            <span>⟳ 重置视图</span>
+          </button>
+        </div>
+
+        <div class="side-card">
+          <div class="side-title">地区选择</div>
+          <button class="side-btn primary" :class="{ active: provinceFilter === 'all' }" @click="applyProvinceFilter('all')">全部区域</button>
+          <button class="side-btn" :class="{ active: provinceFilter === '江苏' }" @click="applyProvinceFilter('江苏')">江苏</button>
+          <button class="side-btn" :class="{ active: provinceFilter === '浙江' }" @click="applyProvinceFilter('浙江')">浙江</button>
+          <button class="side-btn" :class="{ active: provinceFilter === '安徽' }" @click="applyProvinceFilter('安徽')">安徽</button>
+          <button class="side-btn" :class="{ active: provinceFilter === '上海' }" @click="applyProvinceFilter('上海')">上海</button>
+        </div>
+
+        <div class="side-card">
+          <div class="side-title">数据统计</div>
+          <div class="stat-row">
+            <span>总非遗项目</span>
+            <strong>{{ totalCount }}</strong>
+          </div>
+          <div class="stat-row">
+            <span>江苏省</span>
+            <strong>{{ provinceCount('江苏') }}</strong>
+          </div>
+          <div class="stat-row">
+            <span>浙江省</span>
+            <strong>{{ provinceCount('浙江') }}</strong>
+          </div>
+          <div class="stat-row">
+            <span>安徽省</span>
+            <strong>{{ provinceCount('安徽') }}</strong>
+          </div>
+          <div class="stat-row">
+            <span>上海市</span>
+            <strong>{{ provinceCount('上海') }}</strong>
+          </div>
+        </div>
+      </div>
+
       <div id="mapbox-container" ref="mapContainer"></div>
 
-      <div class="toolbar">
-        <div class="stat-item" style="font-size: 12px; color: #666; line-height: 1.6;">
+      <div class="info-panel" v-if="hoveredCity">
+        <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
           <strong>💡 提示</strong><br>
-          双击地图上的城市，<br>
-          查看该市的非遗<br>
-          类型分布情况
+          <span style="font-size: 11px;">双击查看该市的非遗类型分布</span>
         </div>
         <hr style="margin: 8px 0; border: none; border-top: 1px solid #eee;" />
-        <button
-          style="width: 100%; padding: 6px; margin-top: 8px; border: 1px solid #ccc; border-radius: 4px; background: white; cursor: pointer; font-size: 13px;"
-          @click="resetView"
-        >
-          重置视图
-        </button>
+        <div class="info-title">{{ hoveredCity.name }}</div>
+        <div class="info-row"><span>省份：</span>{{ hoveredCity.province }}</div>
+        <div class="info-row"><span>非遗数：</span>{{ hoveredCity.count }}</div>
+        <div style="margin-top: 8px; padding: 6px; background: #f0f9e8; border-radius: 3px; font-size: 12px; color: #2b8cbe; text-align: center; font-weight: 500;">
+          双击查看详情
+        </div>
+      </div>
+      
+      <div class="info-panel" v-else>
+        <div style="font-size: 12px; color: #666; line-height: 1.6;">
+          <strong>💡 提示</strong><br>
+          <span style="font-size: 11px;">悬停城市查看数据，<br>双击查看非遗类型分布</span>
+        </div>
       </div>
 
       <div class="legend">
@@ -29,11 +80,23 @@
       </div>
 
       <div class="info-panel" v-if="hoveredCity">
+        <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
+          <strong>💡 提示</strong><br>
+          <span style="font-size: 11px;">双击查看该市的非遗类型分布</span>
+        </div>
+        <hr style="margin: 8px 0; border: none; border-top: 1px solid #eee;" />
         <div class="info-title">{{ hoveredCity.name }}</div>
         <div class="info-row"><span>省份：</span>{{ hoveredCity.province }}</div>
         <div class="info-row"><span>非遗数：</span>{{ hoveredCity.count }}</div>
         <div style="margin-top: 8px; padding: 6px; background: #f0f9e8; border-radius: 3px; font-size: 12px; color: #2b8cbe; text-align: center; font-weight: 500;">
-          💡 双击查看类型分布
+          双击查看详情
+        </div>
+      </div>
+      
+      <div class="info-panel" v-else>
+        <div style="font-size: 12px; color: #666; line-height: 1.6;">
+          <strong>💡 提示</strong><br>
+          <span style="font-size: 11px;">悬停城市查看数据，<br>双击查看非遗类型分布</span>
         </div>
       </div>
 
@@ -72,6 +135,10 @@ const hoveredCity = ref<{ name: string; province: string; count: number } | null
 const cityData = ref<Array<{ name: string; province: string; count: number }>>([])
 const maxCount = ref<number>(0)
 const dynamicThresholds = ref<number[]>([])
+const showLabels = ref(false)
+const provinceFilter = ref<'all' | '江苏' | '浙江' | '安徽' | '上海'>('all')
+const provinceStats = ref<Array<{ province: string; count: number }>>([])
+const provinceBounds = ref<Record<string, [[number, number], [number, number]]>>({})
 
 // ECharts modal 相关
 const showModal = ref(false)
@@ -81,17 +148,18 @@ const chartContainer = ref<HTMLDivElement | null>(null)
 const categoryLoading = ref(false)
 
 const legend = [
-  { threshold: 0, label: '0-20%', color: '#f0f9e8' },
-  { threshold: 20, label: '20-40%', color: '#ccebc5' },
-  { threshold: 40, label: '40-60%', color: '#a8ddb5' },
-  { threshold: 60, label: '60-80%', color: '#7bccc4' },
-  { threshold: 80, label: '80-100%', color: '#2b8cbe' }
+  { threshold: 0, label: '0-20%', color: '#fef5e7' },
+  { threshold: 20, label: '20-40%', color: '#fcd5b4' },
+  { threshold: 40, label: '40-60%', color: '#f8b88b' },
+  { threshold: 60, label: '60-80%', color: '#e74c3c' },
+  { threshold: 80, label: '80-100%', color: '#c0392b' }
 ]
 
 const cityCount = computed(() => cityData.value.length)
-const totalCount = computed(() => cityData.value.reduce((sum, c) => sum + c.count, 0))
+const totalCount = computed(() => provinceStats.value.reduce((sum, p) => sum + p.count, 0))
+const provinceCount = (name: string) => provinceStats.value.find(p => p.province === name)?.count || 0
 
-const colorRamp = ['step', ['get', 'count'], '#f0f9e8', 10, '#ccebc5', 30, '#a8ddb5', 60, '#7bccc4', 100, '#2b8cbe'] as mapboxgl.Expression
+const colorRamp = ['step', ['get', 'count'], '#fef5e7', 10, '#fcd5b4', 30, '#f8b88b', 60, '#e74c3c', 100, '#c0392b'] as mapboxgl.Expression
 
 const normalizeName = (name: string) => {
   let city = name
@@ -137,6 +205,54 @@ const loadData = async () => {
 
   cityData.value = enrichedFeatures.map((f: any) => ({ name: f.properties.name, province: f.properties.province, count: f.properties.count }))
 
+  // 计算每个省份的边界
+  const bounds: Record<string, [[number, number], [number, number]]> = {}
+  const provinceFeatures: Record<string, any[]> = {}
+  
+  enrichedFeatures.forEach((f: any) => {
+    const province = f.properties.province
+    if (province) {
+      if (!provinceFeatures[province]) {
+        provinceFeatures[province] = []
+      }
+      provinceFeatures[province].push(f)
+    }
+  })
+  
+  // 从每个省份的 features 计算 bbox
+  Object.entries(provinceFeatures).forEach(([province, features]: [string, any[]]) => {
+    let minLng = Infinity, maxLng = -Infinity
+    let minLat = Infinity, maxLat = -Infinity
+    
+    features.forEach((f: any) => {
+      if (f.geometry?.coordinates) {
+        if (f.geometry.type === 'Polygon') {
+          f.geometry.coordinates[0].forEach((coord: [number, number]) => {
+            minLng = Math.min(minLng, coord[0])
+            maxLng = Math.max(maxLng, coord[0])
+            minLat = Math.min(minLat, coord[1])
+            maxLat = Math.max(maxLat, coord[1])
+          })
+        } else if (f.geometry.type === 'MultiPolygon') {
+          f.geometry.coordinates.forEach((polygon: any) => {
+            polygon[0].forEach((coord: [number, number]) => {
+              minLng = Math.min(minLng, coord[0])
+              maxLng = Math.max(maxLng, coord[0])
+              minLat = Math.min(minLat, coord[1])
+              maxLat = Math.max(maxLat, coord[1])
+            })
+          })
+        }
+      }
+    })
+    
+    if (minLng !== Infinity) {
+      bounds[province] = [[minLng, minLat], [maxLng, maxLat]]
+    }
+  })
+  
+  provinceBounds.value = bounds
+
   const max = Math.max(...cityData.value.map(c => c.count), 1)
   maxCount.value = max
   dynamicThresholds.value = [
@@ -149,6 +265,21 @@ const loadData = async () => {
   ]
 
   return { ...geojson, features: enrichedFeatures }
+}
+
+const loadProvinceStats = async () => {
+  try {
+    const res = await fetch('/api/heritage/statistics/by-province')
+    const data = await res.json()
+    if (data.success) {
+      provinceStats.value = data.data.map((item: any) => ({
+        province: item.province,
+        count: Number(item.count) || 0
+      }))
+    }
+  } catch (error) {
+    console.error('获取省级统计失败', error)
+  }
 }
 
 const showCategoryChart = async (cityName: string, province: string) => {
@@ -255,6 +386,33 @@ const closeModal = () => {
   showModal.value = false
 }
 
+const applyProvinceFilter = (province: 'all' | '江苏' | '浙江' | '安徽' | '上海') => {
+  provinceFilter.value = province
+  if (!mapInstance.value) return
+  const filter = province === 'all' ? null : ['==', ['get', 'province'], province]
+  ;['yrd-fill', 'yrd-outline', 'yrd-labels'].forEach(layer => {
+    if (mapInstance.value?.getLayer(layer)) {
+      mapInstance.value.setFilter(layer, filter as any)
+    }
+  })
+  
+  // 动画缩放到选定省份
+  if (province === 'all') {
+    // 缩放到长三角全部区域
+    mapInstance.value.flyTo({ center: [120, 31], zoom: 5.5, duration: 1200 })
+  } else if (provinceBounds.value[province]) {
+    const bounds = provinceBounds.value[province]
+    mapInstance.value.fitBounds(bounds, { padding: 50, duration: 1200 })
+  }
+}
+
+const toggleLabels = () => {
+  showLabels.value = !showLabels.value
+  if (mapInstance.value?.getLayer('yrd-labels')) {
+    mapInstance.value.setLayoutProperty('yrd-labels', 'visibility', showLabels.value ? 'visible' : 'none')
+  }
+}
+
 const renderMap = async () => {
   if (!mapContainer.value) return
 
@@ -262,21 +420,22 @@ const renderMap = async () => {
     container: mapContainer.value,
     style: {
       version: 8,
+      glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
       sources: {
-        'osm-zh': {
+        'stadia-terrain': {
           type: 'raster',
           tiles: [
-            'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+            'https://tiles.stadiamaps.com/tiles/stamen_terrain_background/{z}/{x}/{y}.png'
           ],
           tileSize: 256,
-          attribution: '© OpenStreetMap contributors'
+          attribution: '© Stadia Maps, © Stamen Design, © OpenStreetMap contributors'
         }
       },
       layers: [
         {
-          id: 'osm-layer',
+          id: 'stadia-layer',
           type: 'raster',
-          source: 'osm-zh'
+          source: 'stadia-terrain'
         }
       ]
     },
@@ -304,13 +463,13 @@ const renderMap = async () => {
         'fill-color': [
           'step',
           ['get', 'count'],
-          '#f0f9e8',
-          dynamicThresholds.value[1], '#ccebc5',
-          dynamicThresholds.value[2], '#a8ddb5',
-          dynamicThresholds.value[3], '#7bccc4',
-          dynamicThresholds.value[4], '#2b8cbe'
+          '#fef5e7',
+          dynamicThresholds.value[1], '#fcd5b4',
+          dynamicThresholds.value[2], '#f8b88b',
+          dynamicThresholds.value[3], '#e74c3c',
+          dynamicThresholds.value[4], '#c0392b'
         ] as mapboxgl.Expression,
-        'fill-opacity': 0.65
+        'fill-opacity': 0.6
       }
     })
 
@@ -321,6 +480,24 @@ const renderMap = async () => {
       paint: {
         'line-color': '#666',
         'line-width': 0.6
+      }
+    })
+
+    // 标签图层（默认显示）
+    map.addLayer({
+      id: 'yrd-labels',
+      type: 'symbol',
+      source: 'yrd-cities',
+      layout: {
+        'text-field': ['get', 'name'],
+        'text-size': 11,
+        'text-offset': [0, 0.8],
+        'visibility': 'visible'
+      },
+      paint: {
+        'text-color': '#2f3c4f',
+        'text-halo-color': 'rgba(255,255,255,0.9)',
+        'text-halo-width': 1
       }
     })
 
@@ -348,6 +525,9 @@ const renderMap = async () => {
       map.getCanvas().style.cursor = ''
       hoveredCity.value = null
     })
+
+    // 应用当前省份过滤
+    applyProvinceFilter(provinceFilter.value)
   })
 
   mapInstance.value = map
@@ -358,7 +538,7 @@ const resetView = () => {
 }
 
 onMounted(() => {
-  renderMap().catch(err => console.error('地图加载失败', err))
+  Promise.all([renderMap(), loadProvinceStats()]).catch(err => console.error('地图加载失败', err))
 })
 
 onUnmounted(() => {
@@ -381,6 +561,78 @@ onUnmounted(() => {
   flex: 1;
   position: relative;
   overflow: hidden;
+}
+
+.side-left {
+  position: absolute;
+  top: 80px;
+  left: 20px;
+  width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 10;
+}
+
+.side-card {
+  background: #fff7ef;
+  border: 1px solid #f2e4d3;
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.side-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: #7a5a32;
+  margin-bottom: 8px;
+}
+
+.side-btn {
+  width: 100%;
+  border: 1px solid #e5d5c4;
+  background: #fff;
+  color: #7a5a32;
+  border-radius: 6px;
+  padding: 8px 6px;
+  font-size: 13px;
+  cursor: pointer;
+  margin-bottom: 6px;
+  transition: all 0.15s ease;
+}
+
+.side-btn.primary {
+  background: #d7a877;
+  border-color: #d7a877;
+  color: #fff;
+}
+
+.side-btn:hover {
+  background: #f4e7d7;
+}
+
+.side-btn.active {
+  background: #c88f56;
+  color: #fff;
+  border-color: #c88f56;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border: 1px solid #f0e2d4;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: #7a5a32;
+  margin-bottom: 6px;
+}
+
+.stat-row strong {
+  color: #c88f56;
 }
 
 #mapbox-container {
@@ -455,14 +707,14 @@ onUnmounted(() => {
 
 .info-panel {
   position: absolute;
-  top: 20px;
-  left: 20px;
+  top: 80px;
+  right: 20px;
   background: white;
   border-radius: 8px;
   padding: 12px 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   z-index: 2;
-  min-width: 200px;
+  min-width: 220px;
 }
 
 .info-title {

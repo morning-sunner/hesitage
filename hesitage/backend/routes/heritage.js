@@ -602,4 +602,76 @@ router.get('/export/statistics', async (req, res) => {
   }
 });
 
+// GET /api/heritage/coordinates/:location
+// 获取指定位置的坐标数据
+router.get('/coordinates/:location', async (req, res) => {
+  try {
+    const { location } = req.params;
+    const decodedLocation = decodeURIComponent(location);
+
+    // 首先根据location字段查询
+    let query = `
+      SELECT 
+        x,
+        y,
+        place_merged AS location,
+        name_cn AS name
+      FROM ${YRD_TABLE}
+      WHERE (place_merged ILIKE $1 OR name_cn ILIKE $1)
+        AND x IS NOT NULL
+        AND y IS NOT NULL
+      LIMIT 1
+    `;
+
+    const result = await db.query(query, [`%${decodedLocation}%`]);
+
+    if (result.rows.length > 0) {
+      const row = result.rows[0];
+      res.json({
+        success: true,
+        data: {
+          x: parseFloat(row.x),
+          y: parseFloat(row.y),
+          location: row.location,
+          name: row.name
+        }
+      });
+    } else {
+      // 如果没有找到精确的坐标，尝试模糊搜索
+      query = `
+        SELECT 
+          x,
+          y,
+          place_merged AS location,
+          name_cn AS name
+        FROM ${YRD_TABLE}
+        WHERE place_merged IS NOT NULL
+          AND x IS NOT NULL
+          AND y IS NOT NULL
+        LIMIT 5
+      `;
+
+      const fuzzyResult = await db.query(query);
+      
+      res.json({
+        success: false,
+        message: '未找到精确的坐标信息',
+        data: fuzzyResult.rows.map(row => ({
+          x: parseFloat(row.x),
+          y: parseFloat(row.y),
+          location: row.location,
+          name: row.name
+        }))
+      });
+    }
+  } catch (error) {
+    console.error('获取坐标失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取坐标失败',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

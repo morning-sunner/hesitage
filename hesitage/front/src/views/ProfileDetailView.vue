@@ -35,8 +35,12 @@
       </div>
 
       <div class="detail-content">
-        <div class="detail-img-container">
-          <img :src="detail.img" class="detail-img" :alt="detail.name" />
+        <div class="detail-img-grid">
+          <div class="img-placeholder-grid">
+            <div v-for="i in 12" :key="i" class="grid-item">
+              <img :src="detail.img" :alt="`${detail.name} 示意图 ${i}`" class="grid-img" />
+            </div>
+          </div>
         </div>
 
         <div class="info-area">
@@ -57,7 +61,7 @@
             <div class="map-wrap">
               <div ref="mapEl" class="map-img"></div>
               <div v-if="mapError" class="map-fallback">
-                地图加载失败（可能是网络或 Key 问题）。页面不影响使用。
+                地图加载失败，高德地图 API 待提供
               </div>
             </div>
           </div>
@@ -457,26 +461,43 @@ function devSoon() {
 
 .detail-content {
   display: flex;
-  gap: 30px;
-  flex-wrap: wrap;
+  gap: 40px;
+  flex-wrap: nowrap;
+  align-items: flex-start;
 }
 
-.detail-img-container {
-  flex: 0 0 280px;
+.detail-img-grid {
+  flex: 0 0 380px;
 }
 
-.detail-img {
+.img-placeholder-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 12px;
+  border: 1px solid rgba(230, 200, 155, 0.4);
+}
+
+.grid-item {
   width: 100%;
-  height: 320px;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(230, 200, 155, 0.3);
+}
+
+.grid-img {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  border-radius: 10px;
-  border: 1px solid rgba(230, 200, 155, 0.8);
-  box-shadow: 0 10px 22px rgba(0,0,0,0.10);
 }
 
 .info-area {
   flex: 1;
-  min-width: 300px;
+  min-width: 0;
 }
 
 .info-item {

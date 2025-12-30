@@ -9,6 +9,7 @@ interface ProvinceData {
   color: string
   projectCount: number
   worldHeritage: number
+  worldHeritageList?: string[]
   description: string
   culturalBackground: string
   cities: string[]
@@ -37,6 +38,7 @@ export const useHeritageStore = defineStore('heritage', () => {
       color: '#d4998f',
       projectCount: 146,
       worldHeritage: 3,
+      worldHeritageList: ['昆曲', '苏州古典园林', '南京云锦', '苏州评弹', '苏州丝绸'],
       description:
         '江苏，地处中国东部长江三角腹心，是河湖交织、水网密布的江南水乡和鱼米之乡。江苏拥有众多的历史古迹和精深的文化遗产，昆曲艺术被誉为"百戏之祖"，苏州评弹委婉悠扬，南京云锦誉为禁城御用，苏州园林享誉海内外。',
       culturalBackground:
@@ -137,7 +139,8 @@ export const useHeritageStore = defineStore('heritage', () => {
       map: '/figures/浙江.png',
       color: '#e8d5b7',
       projectCount: 217,
-      worldHeritage: 1,
+      worldHeritage: 4,
+      worldHeritageList: ['西湖', '龙泉青瓷', '杭州丝绸', '越剧', '龙井茶制作'],
       description:
         '浙江，位于中国东南沿海，是江南水乡的典型代表。这里有西湖的秀美、钱塘江的壮阔、江南古镇的韵味。龙泉青瓷、越剧艺术、杭州丝绸、绍兴黄酒等非物质文化遗产丰富多彩，展现了浙江独特的江南文化魅力。',
       culturalBackground:
@@ -239,6 +242,7 @@ export const useHeritageStore = defineStore('heritage', () => {
       color: '#a8c8b8',
       projectCount: 88,
       worldHeritage: 2,
+      worldHeritageList: ['黄梅戏', '宣纸制作', '徽墨', '徽派建筑', '歙砚'],
       description:
         '安徽，地处华东腹地，兼有南北文化特色。黄山奇松怪石、徽州古村落、宣纸徽墨等文化符号闻名遐迩。徽派建筑、徽剧、黄梅戏等非物质文化遗产，体现了安徽深厚的文化积淀。徽商文化与徽州三雕的精湛技艺，构筑了安徽独特的文化景观。',
       culturalBackground:
@@ -339,6 +343,7 @@ export const useHeritageStore = defineStore('heritage', () => {
       color: '#d4998f',
       projectCount: 55,
       worldHeritage: 0,
+      worldHeritageList: ['海派文化', '上海剪纸', '豫园灯会', '本帮菜烹饪', '沪剧'],
       description:
         '上海，位于长江入海口，是中国最大的经济中心城市。海派文化融合了江南传统文化与现代都市文明。上海剪纸、豫园灯会、本帮菜烹饪技艺等非遗项目，展现了上海特色的市民文化。作为国际大都市，上海在传承传统文化的同时，不断创新发展。',
       culturalBackground:

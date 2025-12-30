@@ -48,6 +48,11 @@
                   <div class="stat-label">世界遗产</div>
                 </div>
               </div>
+              <div class="world-heritage-tags" v-if="province.worldHeritageList && province.worldHeritageList.length > 0">
+                <span v-for="(item, index) in province.worldHeritageList.slice(0, 5)" :key="index" class="heritage-tag">
+                  {{ item }}
+                </span>
+              </div>
               <button class="explore-btn" @click.stop="exploreProvince(province.id)">
                 探索{{ province.name }}
               </button>
@@ -78,13 +83,29 @@ const heritageStore = useHeritageStore()
 const activeRegion = ref('yangtze')
 const activeProvince = ref('jiangsu')
 
+// 实时省份统计数据
+const provinceStats = ref<Record<string, number>>({
+  jiangsu: 132,
+  zhejiang: 232,
+  anhui: 84,
+  shanghai: 65
+})
+
 const allProvinces = computed(() => heritageStore.getAllProvinces())
 
 const visibleProvinces = computed(() => {
   if (activeRegion.value === 'yangtze') {
-    return allProvinces.value
+    return allProvinces.value.map(p => ({
+      ...p,
+      projectCount: provinceStats.value[p.id] || p.projectCount
+    }))
   }
-  return allProvinces.value.filter((p) => p.id === activeRegion.value)
+  return allProvinces.value
+    .filter((p) => p.id === activeRegion.value)
+    .map(p => ({
+      ...p,
+      projectCount: provinceStats.value[p.id] || p.projectCount
+    }))
 })
 
 const selectProvince = (provinceId: string) => {
@@ -98,8 +119,34 @@ const exploreProvince = (provinceId: string) => {
   })
 }
 
+// 从后端获取实时统计数据
+const loadProvinceStats = async () => {
+  try {
+    const res = await fetch('/api/heritage/statistics/by-province')
+    const data = await res.json()
+    if (data.success && data.data) {
+      const stats: Record<string, number> = {}
+      data.data.forEach((item: any) => {
+        const province = item.province
+        const count = Number(item.count) || 0
+        // 映射省份名称到 id
+        if (province === '江苏') stats['jiangsu'] = count
+        else if (province === '浙江') stats['zhejiang'] = count
+        else if (province === '安徽') stats['anhui'] = count
+        else if (province === '上海') stats['shanghai'] = count
+      })
+      if (Object.keys(stats).length > 0) {
+        provinceStats.value = stats
+      }
+    }
+  } catch (error) {
+    console.error('获取省份统计失败', error)
+  }
+}
+
 onMounted(() => {
   activeProvince.value = 'jiangsu'
+  loadProvinceStats()
 })
 </script>
 
@@ -262,6 +309,44 @@ onMounted(() => {
 .stat-label {
   font-size: 13px;
   color: #666;
+}
+
+.stats-description {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.tag {
+  display: inline-block;
+  background: rgba(139, 90, 43, 0.1);
+  color: #8b5a2b;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid rgba(139, 90, 43, 0.2);
+}
+
+.world-heritage-tags {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.heritage-tag {
+  display: block;
+  background: rgba(200, 160, 100, 0.12);
+  color: #8b5a2b;
+  padding: 8px 6px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid rgba(200, 160, 100, 0.25);
+  text-align: center;
+  line-height: 1.4;
 }
 
 .explore-btn {

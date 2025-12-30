@@ -20,7 +20,7 @@ export const api = {
   /**
    * 发送 GET 请求
    */
-  get: async <T = any>(url: string, options?: any): Promise<{ data: T }> => {
+  get: async <T = any>(url: string, options?: any): Promise<ApiResponse<T>> => {
     const fullUrl = new URL(`${API_BASE}${url}`)
     if (options?.params) {
       Object.keys(options.params).forEach((key) => {
@@ -37,7 +37,7 @@ export const api = {
   /**
    * 发送 POST 请求
    */
-  post: async <T = any>(url: string, data?: any, options?: any): Promise<{ data: T }> => {
+  post: async <T = any>(url: string, data?: any, options?: any): Promise<ApiResponse<T>> => {
     const res = await fetch(`${API_BASE}${url}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -49,7 +49,7 @@ export const api = {
   /**
    * 发送 PUT 请求
    */
-  put: async <T = any>(url: string, data?: any, options?: any): Promise<{ data: T }> => {
+  put: async <T = any>(url: string, data?: any, options?: any): Promise<ApiResponse<T>> => {
     const res = await fetch(`${API_BASE}${url}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -61,7 +61,7 @@ export const api = {
   /**
    * 发送 DELETE 请求
    */
-  delete: async <T = any>(url: string, options?: any): Promise<{ data: T }> => {
+  delete: async <T = any>(url: string, options?: any): Promise<ApiResponse<T>> => {
     const res = await fetch(`${API_BASE}${url}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },

@@ -137,28 +137,62 @@
     </div>
 
     <!-- 详情模态框 -->
-    <el-dialog v-model="showDetail" :title="selectedItem?.name" width="600px">
-      <div v-if="selectedItem" class="detail-content">
-        <img :src="selectedItem.image" :alt="selectedItem.name" class="detail-image" />
-        <div class="detail-info">
-          <p><strong>分类：</strong>{{ selectedItem.category }}</p>
-          <p><strong>地区：</strong>{{ selectedItem.location }}</p>
-          <p><strong>简介：</strong>{{ selectedItem.description }}</p>
-          <p v-if="selectedItem.significance" class="significance">
-            <strong>文化意义：</strong>{{ selectedItem.significance }}
-          </p>
+    <div v-if="showDetail && selectedItem" class="modal-overlay" @click="showDetail = false">
+      <div class="modal-content" @click.stop>
+        <button class="modal-close" @click="showDetail = false">✕</button>
+        
+        <div class="detail-grid">
+          <!-- 左侧图片 -->
+          <div class="detail-img-section">
+            <img :src="selectedItem.image" :alt="selectedItem.name" class="detail-image" />
+          </div>
+
+          <!-- 右侧信息区域 -->
+          <div class="detail-info-section">
+            <h2 class="detail-title">{{ selectedItem.name }}</h2>
+            
+            <div class="info-item">
+              <span class="info-label">所在地区：</span>
+              <span class="info-value">{{ selectedItem.location }}</span>
+            </div>
+
+            <div class="info-item">
+              <span class="info-label">项目简介：</span>
+              <p class="info-description">{{ selectedItem.description }}</p>
+            </div>
+
+            <!-- 地图容器 -->
+            <div class="info-item map-item">
+              <span class="info-label">地理位置：</span>
+              <div ref="mapContainer" class="amap-container"></div>
+              <div v-if="mapError" class="map-error">地图加载失败</div>
+              
+              <!-- 坐标信息 -->
+              <div v-if="mapData" class="coordinate-info">
+                <p><strong>纬度：</strong> {{ mapData.y.toFixed(6) }}</p>
+                <p><strong>经度：</strong> {{ mapData.x.toFixed(6) }}</p>
+                <p v-if="mapData.location"><strong>位置：</strong> {{ mapData.location }}</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </el-dialog>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import NavBar from '../components/NavBar.vue'
 import { api } from '../utils/api'
+
+declare global {
+  interface Window {
+    T?: any
+  }
+}
 
 const route = useRoute()
 
@@ -275,7 +309,7 @@ const fetchHeritageItems = async () => {
         latitude: item.y,
         longitude: item.x
       }))
-      total.value = response.total
+      total.value = (response as any).total || 0
     } else {
       ElMessage.error('加载数据失败')
     }
@@ -388,6 +422,158 @@ const clearAllFilters = () => {
   currentPage.value = 1
   fetchHeritageItems()
 }
+
+// 地图相关变量
+const mapContainer = ref<HTMLElement | null>(null)
+const mapError = ref(false)
+const mapData = ref<any>(null)
+let tiandituMap: any = null
+let tiandituLoaded = false
+
+// 加载天地图 SDK
+const loadTiandituSDK = (): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    if (window.T) {
+      tiandituLoaded = true
+      resolve()
+      return
+    }
+
+    // 使用 HTTP 而不是 HTTPS 来避免证书问题
+    const script = document.createElement('script')
+    script.src = 'http://api.tianditu.com/api?v=4.0&tk=be91f36f4ea2161b0721a5b4f7628a3d'
+    script.async = true
+    script.onload = () => {
+      tiandituLoaded = true
+      console.log('天地图 SDK 加载成功')
+      resolve()
+    }
+    script.onerror = (error) => {
+      console.error('天地图 SDK 加载失败:', error)
+      // 尝试备用地址（如果主地址失败）
+      if (script.src.startsWith('http://')) {
+        // 不再重试，直接失败
+        reject(new Error('天地图 SDK 加载失败'))
+      }
+    }
+    document.head.appendChild(script)
+  })
+}
+
+// 初始化天地图
+const initTiandituMap = async () => {
+  try {
+    mapError.value = false
+    mapData.value = null
+    
+    if (!mapContainer.value) {
+      console.error('地图容器不存在')
+      return
+    }
+
+    // 确保 SDK 已加载
+    if (!tiandituLoaded) {
+      await loadTiandituSDK()
+    }
+
+    // 等待 DOM 准备好
+    await nextTick()
+
+    // 获取选中项的坐标
+    if (!selectedItem.value) {
+      console.error('未选中项目')
+      return
+    }
+
+    // 请求坐标数据
+    const response = await api.get(`/heritage/coordinates/${encodeURIComponent(selectedItem.value.location)}`)
+
+    if (response.success && response.data) {
+      mapData.value = response.data
+      const { x, y } = response.data
+      
+      // 销毁旧的地图实例
+      if (tiandituMap) {
+        try {
+          tiandituMap = null
+        } catch (e) {
+          console.warn('销毁旧地图失败:', e)
+        }
+      }
+
+      // 确保容器存在
+      if (!mapContainer.value || !window.T) {
+        console.error('地图初始化条件不满足')
+        mapError.value = true
+        return
+      }
+
+      // 创建新的地图实例
+      try {
+        // 清空容器
+        mapContainer.value.innerHTML = ''
+        
+        // 创建天地图实例
+        tiandituMap = new window.T.Map(mapContainer.value, {
+          center: new window.T.LngLat(x, y),
+          zoom: 12
+        })
+        
+        // 添加标记
+        setTimeout(() => {
+          if (tiandituMap && window.T) {
+            try {
+              const marker = new window.T.Marker(new window.T.LngLat(x, y))
+              tiandituMap.addOverLay(marker)
+              console.log('天地图标记添加成功', x, y)
+            } catch (e) {
+              console.warn('添加标记失败:', e)
+            }
+          }
+        }, 300)
+        
+      } catch (e) {
+        console.error('创建地图实例失败:', e)
+        mapError.value = true
+      }
+    } else {
+      mapError.value = true
+      console.error('获取坐标失败')
+    }
+  } catch (error) {
+    console.error('地图初始化失败:', error)
+    mapError.value = true
+  }
+}
+
+// 监听 showDetail 变化，当显示详情时初始化地图
+watch(showDetail, async (newVal) => {
+  if (newVal) {
+    // 打开详情时初始化地图
+    await nextTick()
+    initTiandituMap()
+  } else {
+    // 关闭详情时销毁地图
+    if (tiandituMap) {
+      try {
+        tiandituMap = null
+      } catch (e) {
+        console.warn('销毁地图出错:', e)
+      }
+    }
+  }
+}, { immediate: false })
+
+// 组件卸载时清理
+onBeforeUnmount(() => {
+  if (tiandituMap) {
+    try {
+      tiandituMap = null
+    } catch (e) {
+      console.warn('组件卸载时销毁地图失败:', e)
+    }
+  }
+})
 </script>
 
 <style scoped>
@@ -699,35 +885,127 @@ const clearAllFilters = () => {
 }
 
 /* 详情模态框 */
-.detail-content {
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.modal-content {
+  background: rgba(255, 248, 235, 0.95);
+  border-radius: 16px;
+  padding: 34px;
+  width: 100%;
+  max-width: 900px;
+  position: relative;
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25);
+  max-height: 85vh;
+  overflow-y: auto;
+  border: 1px solid rgba(230, 200, 155, 0.5);
+  backdrop-filter: blur(10px);
   display: flex;
   flex-direction: column;
-  gap: 20px;
+}
+
+.modal-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(139, 69, 19, 0.1);
+  border: 1px solid rgba(139, 69, 19, 0.2);
+  color: #6d3811;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+  background: rgba(139, 69, 19, 0.16);
+  transform: scale(1.05);
+}
+
+.detail-grid {
+  display: flex;
+  gap: 36px;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  min-height: 0;
+}
+
+.detail-img-section {
+  flex: 0 0 320px;
 }
 
 .detail-image {
   width: 100%;
-  height: 300px;
+  height: 320px;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(230, 200, 155, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.detail-info {
+.detail-info-section {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 20px;
+  overflow-y: auto;
+  max-height: 70vh;
 }
 
-.detail-info p {
+.detail-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #8b4513;
   margin: 0;
-  font-size: 14px;
-  color: #5a4f45;
+  border-left: 4px solid #d4a574;
+  padding-left: 12px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.info-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6d3811;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-value {
+  font-size: 15px;
+  color: #4a3f35;
   line-height: 1.6;
 }
 
-.detail-info strong {
-  color: #4a3f35;
-  font-weight: 600;
+.info-description {
+  font-size: 14px;
+  color: #5a4f45;
+  line-height: 1.8;
+  margin: 0;
 }
 
 .significance {
@@ -735,6 +1013,73 @@ const clearAllFilters = () => {
   padding: 12px;
   border-radius: 6px;
   border-left: 3px solid #d4a574;
+}
+
+.map-item {
+  margin-top: 12px;
+}
+
+.amap-container {
+  width: 100%;
+  height: 300px;
+  border-radius: 8px;
+  border: 1px solid rgba(230, 200, 155, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  margin-top: 10px;
+  overflow: hidden;
+  min-height: 300px;
+  background: #f5f5f5;
+}
+
+.map-error {
+  width: 100%;
+  height: 300px;
+  border-radius: 8px;
+  border: 1px solid rgba(230, 200, 155, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.3);
+  color: #c0504d;
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+.coordinate-info {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(212, 165, 116, 0.08);
+  border-radius: 6px;
+  border-left: 3px solid #d4a574;
+  font-size: 13px;
+}
+
+.coordinate-info p {
+  margin: 6px 0;
+  line-height: 1.6;
+  color: #5a4f45;
+}
+
+.coordinate-info strong {
+  color: #6d3811;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .detail-grid {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .detail-img-section {
+    flex: none;
+    width: 100%;
+  }
+
+  .modal-content {
+    max-width: 95vw;
+    padding: 20px;
+  }
 }
 
 /* 装饰元素 */
