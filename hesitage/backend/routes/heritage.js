@@ -4,6 +4,170 @@ const db = require('../config/database');
 
 const YRD_TABLE = 'shapefile."长三角-全部_地点唯一_地级市"';
 
+// GET /api/heritage/statistics/by-city
+// 获取长三角四省的市级非遗数量
+router.get('/statistics/by-city', async (req, res) => {
+  try {
+    const yrdProvinces = ['江苏', '浙江', '安徽', '上海'];
+
+    const query = `
+      SELECT 
+        provincecn AS province,
+        place_merged AS city,
+        COUNT(*)::int AS count
+      FROM ${YRD_TABLE}
+      WHERE name_cn IS NOT NULL
+        AND place_merged IS NOT NULL
+        AND provincecn = ANY($1)
+      GROUP BY provincecn, place_merged
+      ORDER BY provincecn, count DESC
+    `;
+
+    const result = await db.query(query, [yrdProvinces]);
+    
+    // 处理结果：从"安徽省信阳市"中提取"信阳"
+    const processedData = result.rows.map((row) => ({
+      province: row.province,
+      city: row.city.replace(/^(.*?[省自治区])/, '').replace(/市$/, '').trim() || row.city,
+      count: row.count
+    }));
+
+    res.json({ success: true, data: processedData });
+  } catch (error) {
+    console.error('获取市级统计失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取市级统计失败',
+      error: error.message
+    });
+  }
+});
+
+// GET /api/heritage/statistics/by-city/categories/:city/:province
+// 获取某市的非遗类型分布
+router.get('/statistics/by-city/categories/:city/:province', async (req, res) => {
+  try {
+    const { city, province } = req.params;
+    
+    // 构建市名的正则表达式，用于匹配数据库中的格式"省份+市"
+    const provinceMap = {
+      '安徽': '安徽',
+      '江苏': '江苏',
+      '浙江': '浙江',
+      '上海': '上海'
+    };
+    
+    const prov = provinceMap[province];
+    if (!prov) {
+      return res.status(400).json({
+        success: false,
+        message: '无效的省份'
+      });
+    }
+    
+    // 按非遗类别统计
+    const query = `
+      SELECT 
+        categorycn AS category,
+        COUNT(*) AS count
+      FROM ${YRD_TABLE}
+      WHERE name_cn IS NOT NULL
+        AND place_merged IS NOT NULL
+        AND provincecn = $1
+        AND place_merged LIKE $2
+        AND categorycn IS NOT NULL
+      GROUP BY categorycn
+      ORDER BY count DESC
+    `;
+    
+    // 构造模糊匹配，匹配"省份+市"的格式
+    const cityPattern = `${prov}%${city}%`;
+    const result = await db.query(query, [prov, cityPattern]);
+    
+    res.json({
+      success: true,
+      data: result.rows.map((row) => ({
+        category: row.category,
+        count: parseInt(row.count, 10)
+      }))
+    });
+  } catch (error) {
+    console.error('获取市级类别统计失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取市级类别统计失败',
+      error: error.message
+    });
+  }
+});
+
+// GET /api/heritage/statistics/by-province
+// 获取按省份统计的非遗项目数量
+router.get('/statistics/by-province', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        provincecn,
+        COUNT(*) as count
+      FROM ${YRD_TABLE}
+      WHERE name_cn IS NOT NULL
+      GROUP BY provincecn
+      ORDER BY provincecn
+    `;
+    
+    const result = await db.query(query);
+    
+    // 转换为数组格式 [{ province: '江苏', count: 134 }, ...]
+    const stats = result.rows
+      .filter(row => row.provincecn)
+      .map(row => ({ province: row.provincecn, count: parseInt(row.count) }));
+
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    console.error('获取省份统计失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取统计数据失败',
+      error: error.message
+    });
+  }
+});
+
+// GET /api/heritage/statistics/by-city
+// 按城市统计（仅返回长三角四省的城市数据）
+router.get('/statistics/by-city', async (req, res) => {
+  try {
+    const provinces = ['江苏', '浙江', '安徽', '上海'];
+    const query = `
+      SELECT 
+        provincecn,
+        place_merged AS city,
+        COUNT(*) AS count,
+        AVG(x) AS center_lng,
+        AVG(y) AS center_lat
+      FROM ${YRD_TABLE}
+      WHERE name_cn IS NOT NULL AND provincecn = ANY($1)
+      GROUP BY provincecn, place_merged
+      ORDER BY provincecn, count DESC
+    `;
+
+    const result = await db.query(query, [provinces]);
+
+    const stats = result.rows.map(row => ({
+      province: row.provincecn,
+      city: row.city,
+      count: parseInt(row.count),
+      center_lng: row.center_lng ? parseFloat(row.center_lng) : null,
+      center_lat: row.center_lat ? parseFloat(row.center_lat) : null
+    }));
+
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    console.error('获取城市统计失败:', error);
+    res.status(500).json({ success: false, message: '获取城市统计失败', error: error.message });
+  }
+});
+
 // GET /api/heritage/yrd?page=1&pageSize=5&keyword=昆曲
 router.get('/yrd', async (req, res) => {
   try {
