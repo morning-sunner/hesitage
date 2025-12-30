@@ -1,106 +1,104 @@
 <template>
-  <div class="collection-page">
-    <!-- 顶部头部 -->
-    <div class="header">
-      <h1>个人中心</h1>
+  <Teleport to="body">
+    <div class="profile-overlay">
+      <div class="collection-page">
+        <!-- 顶部头部 -->
+        <div class="header">
+          <h1>个人中心</h1>
 
-      <div class="avatar-area">
-        <div class="avatar" @click="onAvatarClick" title="点击上传头像" :class="{ filled: !!avatarUrl }">
-          <img v-if="avatarUrl" :src="avatarUrl" alt="用户头像" class="avatar-img" />
-          <div v-else class="avatar-icon"></div>
+          <div class="avatar-area">
+            <div class="avatar" @click="onAvatarClick" title="点击上传头像" :class="{ filled: !!avatarUrl }">
+              <img v-if="avatarUrl" :src="avatarUrl" alt="用户头像" class="avatar-img" />
+              <div v-else class="avatar-icon"></div>
 
-          <div class="avatar-mask">
-            <span>{{ avatarUrl ? '更换头像' : '上传头像' }}</span>
+              <div class="avatar-mask">
+                <span>{{ avatarUrl ? '更换头像' : '上传头像' }}</span>
+              </div>
+            </div>
+
+            <div class="avatar-text">{{ avatarUrl ? '点击更换头像' : '添加头像' }}</div>
+            <input ref="fileInputRef" class="file-input" type="file" accept="image/*" @change="onFileChange" />
+          </div>
+
+          <input v-model="userEmail" type="text" class="username-input" placeholder="xxxxx@xx.com" />
+        </div>
+
+        <!-- 导航栏 -->
+        <div class="nav">
+          <button class="nav-home" type="button" @click="goHome" aria-label="返回首页">← 首页</button>
+
+          <div class="nav-links">
+            <router-link to="/profile" class="nav-item" :class="{ active: activeTab === '/profile' }">
+              📋 我的资料
+            </router-link>
+
+            <router-link to="/profile/edit" class="nav-item" :class="{ active: activeTab === '/profile/edit' }">
+              ⭐ 我的收藏
+            </router-link>
+
+            <router-link to="/profile/settings" class="nav-item" :class="{ active: activeTab === '/profile/settings' }">
+              ⚙️ 设置
+            </router-link>
           </div>
         </div>
 
-        <div class="avatar-text">{{ avatarUrl ? '点击更换头像' : '添加头像' }}</div>
-        <input ref="fileInputRef" class="file-input" type="file" accept="image/*" @change="onFileChange" />
-      </div>
+        <!-- 白底主体 -->
+        <div class="page-shell">
+          <div v-if="!canShowFavorites" class="privacy-locked">
+            <div class="lock-title">收藏已设为不公开</div>
+            <div class="lock-desc">你可以在「设置 → 隐私设置」中开启“公开我的收藏”。</div>
+            <button class="lock-btn" type="button" @click="goSettings">去设置</button>
+          </div>
 
-      <input v-model="userEmail" type="text" class="username-input" placeholder="xxxxx@xx.com" />
-    </div>
+          <div v-else class="collection-container">
+            <!-- 左箭头 -->
+            <button
+              class="arrow-btn left-arrow"
+              :class="{ disabled: !canScrollLeft }"
+              :disabled="!canScrollLeft"
+              @click="scrollByPage(-1)"
+              aria-label="向左翻页"
+            >
+              ‹
+            </button>
 
-    <!-- 导航栏：统一样式 + 左侧返回首页 -->
-    <div class="nav">
-      <button class="nav-home" type="button" @click="goHome" aria-label="返回首页">← 首页</button>
+            <!-- 横向列表 -->
+            <div ref="listRef" class="collection-list" @scroll.passive="onListScroll">
+              <div v-for="item in items" :key="item.id" class="collection-item">
+                <div class="collection-map">
+                  <div v-if="!canShowLocation" class="map-fallback">位置信息已隐藏</div>
 
-      <div class="nav-links">
-        <router-link to="/profile" class="nav-item" :class="{ active: activeTab === '/profile' }">
-          📋 我的资料
-        </router-link>
+                  <template v-else>
+                    <div class="map-real" :ref="(el) => setMapEl(item.id, el as HTMLDivElement | null)"></div>
+                    <div v-if="mapError[item.id]" class="map-fallback">地图加载失败（网络或 Key 问题）</div>
+                  </template>
+                </div>
 
-        <router-link to="/profile/edit" class="nav-item" :class="{ active: activeTab === '/profile/edit' }">
-          ⭐ 我的收藏
-        </router-link>
+                <div class="collection-title">{{ item.title }}</div>
+                <div class="collection-desc">{{ item.desc }}</div>
 
-        <router-link
-          to="/profile/settings"
-          class="nav-item"
-          :class="{ active: activeTab === '/profile/settings' }"
-        >
-          ⚙️ 设置
-        </router-link>
-      </div>
-    </div>
-
-    <!-- 白底主体 -->
-    <div class="page-shell">
-      <!-- ✅ 彻底去除隐私影响：永远展示收藏（保留原结构，v-if 永远走 else） -->
-      <div v-if="!canShowFavorites" class="privacy-locked">
-        <div class="lock-title">收藏已设为不公开</div>
-        <div class="lock-desc">你可以在「设置 → 隐私设置」中开启“公开我的收藏”。</div>
-        <button class="lock-btn" type="button" @click="goSettings">去设置</button>
-      </div>
-
-      <div v-else class="collection-container">
-        <!-- 左箭头 -->
-        <button
-          class="arrow-btn left-arrow"
-          :class="{ disabled: !canScrollLeft }"
-          :disabled="!canScrollLeft"
-          @click="scrollByPage(-1)"
-          aria-label="向左翻页"
-        >
-          ‹
-        </button>
-
-        <!-- 横向列表（真正可翻阅） -->
-        <div ref="listRef" class="collection-list" @scroll.passive="onListScroll">
-          <div v-for="item in items" :key="item.id" class="collection-item">
-            <div class="collection-map">
-              <!-- ✅ 彻底去除隐私影响：永远走地图逻辑（保留原结构，v-if 永远 false） -->
-              <div v-if="!canShowLocation" class="map-fallback">位置信息已隐藏</div>
-
-              <template v-else>
-                <div class="map-real" :ref="(el) => setMapEl(item.id, el as HTMLDivElement | null)"></div>
-                <div v-if="mapError[item.id]" class="map-fallback">地图加载失败（网络或 Key 问题）</div>
-              </template>
+                <div class="action-row">
+                  <button class="collection-btn" @click="goDetail(item)">详情</button>
+                  <button class="cancel-btn" @click="removeItem(item.id)">取消收藏</button>
+                </div>
+              </div>
             </div>
 
-            <div class="collection-title">{{ item.title }}</div>
-            <div class="collection-desc">{{ item.desc }}</div>
-
-            <div class="action-row">
-              <button class="collection-btn" @click="goDetail(item)">详情</button>
-              <button class="cancel-btn" @click="removeItem(item.id)">取消收藏</button>
-            </div>
+            <!-- 右箭头 -->
+            <button
+              class="arrow-btn right-arrow"
+              :class="{ disabled: !canScrollRight }"
+              :disabled="!canScrollRight"
+              @click="scrollByPage(1)"
+              aria-label="向右翻页"
+            >
+              ›
+            </button>
           </div>
         </div>
-
-        <!-- 右箭头 -->
-        <button
-          class="arrow-btn right-arrow"
-          :class="{ disabled: !canScrollRight }"
-          :disabled="!canScrollRight"
-          @click="scrollByPage(1)"
-          aria-label="向右翻页"
-        >
-          ›
-        </button>
       </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -125,21 +123,12 @@ const route = useRoute()
 const router = useRouter()
 const activeTab = computed(() => route.path)
 
-/** ✅ 彻底去除隐私设置影响：收藏、位置永远可见 */
+/** 永远可见 */
 const canShowFavorites = computed(() => true)
 const canShowLocation = computed(() => true)
 
-/** ✅ 仅本页解除 #app 的 max-width/padding 限制（关键） */
-const APP_CLASS = 'app-full-bleed'
-const BODY_CLASS = 'profile-full-bleed'
-function enableFullBleed() {
-  document.getElementById('app')?.classList.add(APP_CLASS)
-  document.body.classList.add(BODY_CLASS)
-}
-function disableFullBleed() {
-  document.getElementById('app')?.classList.remove(APP_CLASS)
-  document.body.classList.remove(BODY_CLASS)
-}
+/** 进入页面锁住 body 滚动，离开恢复（不改 #app，不污染别的页面） */
+let prevBodyOverflow = ''
 
 /** ====== 邮箱 + 头像落地（localStorage）====== */
 const LS_EMAIL_KEY = 'userEmail'
@@ -186,7 +175,7 @@ const onFileChange = (e: Event) => {
 // 邮箱落地
 watch(userEmail, (val) => localStorage.setItem(LS_EMAIL_KEY, (val || '').trim()))
 
-/** ====== 收藏数据（你后续肯定会替换成真实数据）====== */
+/** ====== 收藏数据 ====== */
 const items = ref<CollectionItem[]>([
   {
     id: 'nanjing-paper-cut',
@@ -376,7 +365,6 @@ async function initAllMaps() {
 
     try {
       mapError[it.id] = false
-
       const map = new AMap.Map(el, {
         zoom: 10,
         center: it.center,
@@ -429,13 +417,13 @@ function onWinResize() {
 }
 
 onMounted(async () => {
-  enableFullBleed()
+  prevBodyOverflow = document.body.style.overflow
+  document.body.style.overflow = 'hidden'
 
   userEmail.value = localStorage.getItem(LS_EMAIL_KEY) || ''
   avatarUrl.value = localStorage.getItem(LS_AVATAR_KEY) || ''
 
   await nextTick()
-
   applyCols()
   updateArrowState()
   await initAllMaps()
@@ -444,25 +432,29 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
-  disableFullBleed()
+  document.body.style.overflow = prevBodyOverflow || ''
   window.removeEventListener('resize', onWinResize)
   destroyAllMaps()
 })
 </script>
 
 <style scoped>
-/* 下面 style 一字不动：保持你原来的样式 */
-:global(#app.app-full-bleed) {
-  max-width: none !important;
-  width: 100% !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-:global(body.profile-full-bleed) {
-  margin: 0;
+
+.profile-overlay{
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  width: 100vw;
+  height: 100vh;
+  overflow-y: auto;
   overflow-x: hidden;
-  background: #faf6f2;
+
+  background: radial-gradient(ellipse at 20% 0%, rgba(255,255,255,0.85), rgba(250,246,242,1) 55%);
+  scrollbar-gutter: stable both-edges;
+  overscroll-behavior: contain;
+  isolation: isolate;
 }
+
 
 .collection-page * {
   margin: 0;
@@ -602,7 +594,7 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 0 3px rgba(194, 158, 109, 0.16), 0 8px 18px rgba(0,0,0,0.08);
 }
 
-/* ✅ 导航 sticky：统一结构（左按钮 + 中间 tabs） */
+/* 导航 */
 .nav {
   display: flex;
   align-items: center;
@@ -675,8 +667,9 @@ onBeforeUnmount(() => {
   transform: translateY(-1px);
 }
 
+/* ✅ 居中  */
 .page-shell {
-  width: min(1680px, 96vw);
+  width: min(1680px, calc(100% - 48px));
   margin: 0 auto 60px;
   background: rgba(255, 255, 255, 0.62);
   border: 1px solid rgba(240, 230, 214, 0.95);
@@ -687,34 +680,6 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.lock-title {
-  font-size: 18px;
-  font-weight: 850;
-  color: #8b4513;
-  margin-bottom: 10px;
-}
-.lock-desc {
-  font-size: 14px;
-  color: rgba(0,0,0,0.6);
-  line-height: 1.7;
-  margin-bottom: 16px;
-}
-.lock-btn {
-  border: none;
-  cursor: pointer;
-  padding: 10px 18px;
-  border-radius: 10px;
-  background: rgba(139, 69, 19, 0.88);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 750;
-  box-shadow: 0 12px 20px rgba(139, 69, 19, 0.16);
-}
-.lock-btn:hover {
-  background: rgba(109, 56, 17, 0.95);
-  transform: translateY(-2px);
 }
 
 /* 容器 + 箭头 */
