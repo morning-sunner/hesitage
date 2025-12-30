@@ -6,7 +6,7 @@ require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') }
 const config = {
   host: '47.110.134.147',    // 远程服务器地址
   port: 5432,                // PostgreSQL默认端口
-  database: 'hesitage',      // 数据库名
+  database: 'heritage',      // 数据库名
   user: 'postgres',          // 用户名
   password: '123456',        // 密码（确认是否正确）
   // 连接池配置
