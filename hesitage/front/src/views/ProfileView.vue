@@ -1,142 +1,145 @@
 <template>
-  <div class="profile-page">
-    <!-- 顶部头部：与收藏页统一 -->
-    <div class="header">
-      <h1>个人中心</h1>
+  <Teleport to="body">
+    <div class="profile-overlay">
+      <div class="profile-page">
+        <!-- 顶部头部：与收藏页统一 -->
+        <div class="header">
+          <div class="header-inner">
+            <h1>个人中心</h1>
 
-      <!-- 头像上传：与收藏页统一（mask + filled） -->
-      <div class="avatar-area">
-        <div class="avatar" @click="onAvatarClick" title="点击上传头像" :class="{ filled: !!avatarUrl }">
-          <img v-if="avatarUrl" :src="avatarUrl" alt="用户头像" class="avatar-img" />
-          <div v-else class="avatar-icon"></div>
+            <!-- 头像上传 -->
+            <div class="avatar-area">
+              <div class="avatar" @click="onAvatarClick" title="点击上传头像" :class="{ filled: !!avatarUrl }">
+                <img v-if="avatarUrl" :src="avatarUrl" alt="用户头像" class="avatar-img" />
+                <div v-else class="avatar-icon"></div>
 
-          <div class="avatar-mask">
-            <span>{{ avatarUrl ? '更换头像' : '上传头像' }}</span>
+                <div class="avatar-mask">
+                  <span>{{ avatarUrl ? '更换头像' : '上传头像' }}</span>
+                </div>
+              </div>
+
+              <div class="avatar-text">{{ avatarUrl ? '点击更换头像' : '添加头像' }}</div>
+              <input ref="fileInputRef" class="file-input" type="file" accept="image/*" @change="onFileChange" />
+            </div>
+
+            <!-- 右上角邮箱 -->
+            <input v-model="userEmail" type="text" class="username-input" placeholder="xxxxx@xx.com" />
           </div>
         </div>
 
-        <div class="avatar-text">{{ avatarUrl ? '点击更换头像' : '添加头像' }}</div>
-        <input ref="fileInputRef" class="file-input" type="file" accept="image/*" @change="onFileChange" />
-      </div>
+        <!-- 导航栏：统一样式 + 左侧返回首页 -->
+        <div class="nav">
+          <div class="nav-inner">
+            <button class="nav-home" type="button" @click="goHome" aria-label="返回首页">← 首页</button>
 
-      <!-- 右上角邮箱：与收藏页统一 -->
-      <input v-model="userEmail" type="text" class="username-input" placeholder="xxxxx@xx.com" />
-    </div>
+            <div class="nav-links">
+              <router-link to="/profile" class="nav-item" :class="{ active: activeTab === '/profile' }">
+                📋 我的资料
+              </router-link>
 
-    <!-- 导航栏：统一样式 + 左侧返回首页 -->
-    <div class="nav">
-      <button class="nav-home" type="button" @click="goHome" aria-label="返回首页">← 首页</button>
+              <router-link to="/profile/edit" class="nav-item" :class="{ active: activeTab === '/profile/edit' }">
+                ⭐ 我的收藏
+              </router-link>
 
-      <div class="nav-links">
-        <router-link to="/profile" class="nav-item" :class="{ active: activeTab === '/profile' }">
-          📋 我的资料
-        </router-link>
-
-        <router-link to="/profile/edit" class="nav-item" :class="{ active: activeTab === '/profile/edit' }">
-          ⭐ 我的收藏
-        </router-link>
-
-        <router-link
-          to="/profile/settings"
-          class="nav-item"
-          :class="{ active: activeTab === '/profile/settings' }"
-        >
-          ⚙️ 设置
-        </router-link>
-      </div>
-    </div>
-
-    <!-- 白底主体外壳：与收藏页统一 -->
-    <div class="page-shell">
-      <!-- ✅ 主体内容（表单）保留你自己的布局 -->
-      <div class="profile-container">
-        <div class="profile-card">
-          <div class="profile-group">
-            <div class="profile-label">
-              <svg class="label-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path
-                  d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
-                />
-              </svg>
-              用户名
-            </div>
-            <div class="profile-content">
-              <input v-model="username" type="text" class="profile-input" placeholder="请输入用户名" />
+              <router-link to="/profile/settings" class="nav-item" :class="{ active: activeTab === '/profile/settings' }">
+                ⚙️ 设置
+              </router-link>
             </div>
           </div>
+        </div>
 
-          <div class="profile-group">
-            <div class="profile-label">
-              <svg class="label-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path
-                  d="M12 7c2.76 0 5 2.24 5 5s-2.24 5-5 5-5-2.24-5-5 2.24-5 5-5zm0-5C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"
-                />
-              </svg>
-              性别
-            </div>
-            <div class="profile-content">
-              <select v-model="gender" class="profile-input">
-                <option value="">请选择</option>
-                <option value="male">男</option>
-                <option value="female">女</option>
-                <option value="secret">保密</option>
-              </select>
-            </div>
-          </div>
+        <!-- 白底主体外壳 -->
+        <div class="page-shell">
+          <div class="profile-container">
+            <div class="profile-card">
+              <div class="profile-group">
+                <div class="profile-label">
+                  <svg class="label-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path
+                      d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                    />
+                  </svg>
+                  用户名
+                </div>
+                <div class="profile-content">
+                  <input v-model="username" type="text" class="profile-input" placeholder="请输入用户名" />
+                </div>
+              </div>
 
-          <div class="profile-group">
-            <div class="profile-label">
-              <svg class="label-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path
-                  d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"
-                />
-              </svg>
-              生日
-            </div>
-            <div class="profile-content">
-              <input v-model="birthday" type="date" class="profile-input" />
-            </div>
-          </div>
+              <div class="profile-group">
+                <div class="profile-label">
+                  <svg class="label-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path
+                      d="M12 7c2.76 0 5 2.24 5 5s-2.24 5-5 5-5-2.24-5-5 2.24-5 5-5zm0-5C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"
+                    />
+                  </svg>
+                  性别
+                </div>
+                <div class="profile-content">
+                  <select v-model="gender" class="profile-input">
+                    <option value="">请选择</option>
+                    <option value="male">男</option>
+                    <option value="female">女</option>
+                    <option value="secret">保密</option>
+                  </select>
+                </div>
+              </div>
 
-          <div class="profile-group">
-            <div class="profile-label">
-              <svg class="label-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path
-                  d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"
-                />
-              </svg>
-              邮箱
-            </div>
-            <div class="profile-content">
-              <input v-model="userEmail" type="email" class="profile-input" placeholder="请输入邮箱" />
-            </div>
-          </div>
+              <div class="profile-group">
+                <div class="profile-label">
+                  <svg class="label-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path
+                      d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"
+                    />
+                  </svg>
+                  生日
+                </div>
+                <div class="profile-content">
+                  <input v-model="birthday" type="date" class="profile-input" />
+                </div>
+              </div>
 
-          <div class="profile-group">
-            <div class="profile-label">
-              <svg class="label-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z" />
-              </svg>
-              个人简介
-            </div>
-            <div class="profile-content">
-              <textarea
-                v-model="bio"
-                class="profile-textarea"
-                placeholder="请输入个人简介（最多200字）"
-                maxlength="200"
-              ></textarea>
-            </div>
-          </div>
+              <div class="profile-group">
+                <div class="profile-label">
+                  <svg class="label-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path
+                      d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"
+                    />
+                  </svg>
+                  邮箱
+                </div>
+                <div class="profile-content">
+                  <input v-model="userEmail" type="email" class="profile-input" placeholder="请输入邮箱" />
+                </div>
+              </div>
 
-          <div class="profile-actions">
-            <button class="save-btn" @click="onSave">保存修改</button>
-            <button class="cancel-btn" @click="onCancel">取消</button>
+              <div class="profile-group">
+                <div class="profile-label">
+                  <svg class="label-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z" />
+                  </svg>
+                  个人简介
+                </div>
+                <div class="profile-content">
+                  <textarea
+                    v-model="bio"
+                    class="profile-textarea"
+                    placeholder="请输入个人简介（最多200字）"
+                    maxlength="200"
+                  ></textarea>
+                </div>
+              </div>
+
+              <div class="profile-actions">
+                <button class="save-btn" @click="onSave">保存修改</button>
+                <button class="cancel-btn" @click="onCancel">取消</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -147,16 +150,7 @@ const route = useRoute()
 const router = useRouter()
 const activeTab = computed(() => route.path)
 
-const APP_CLASS = 'app-full-bleed'
-const BODY_CLASS = 'profile-full-bleed'
-function enableFullBleed() {
-  document.getElementById('app')?.classList.add(APP_CLASS)
-  document.body.classList.add(BODY_CLASS)
-}
-function disableFullBleed() {
-  document.getElementById('app')?.classList.remove(APP_CLASS)
-  document.body.classList.remove(BODY_CLASS)
-}
+let prevBodyOverflow = ''
 
 // 表单数据
 const username = ref('')
@@ -209,7 +203,8 @@ const onFileChange = (e: Event) => {
 watch(userEmail, (val) => localStorage.setItem(LS_EMAIL_KEY, (val || '').trim()))
 
 onMounted(() => {
-  enableFullBleed()
+  prevBodyOverflow = document.body.style.overflow
+  document.body.style.overflow = 'hidden'
 
   username.value = localStorage.getItem('userName') || ''
   userEmail.value = localStorage.getItem(LS_EMAIL_KEY) || ''
@@ -217,7 +212,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  disableFullBleed()
+  document.body.style.overflow = prevBodyOverflow || ''
 })
 
 function goHome() {
@@ -242,24 +237,28 @@ function onCancel() {
 </script>
 
 <style scoped>
-/* ✅ 与收藏页一致：解除 #app 全局 max-width/padding（关键！） */
-:global(#app.app-full-bleed) {
-  max-width: none !important;
-  width: 100% !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-:global(body.profile-full-bleed) {
-  margin: 0;
+.profile-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  width: 100vw;
+  height: 100vh;
+  overflow-y: auto;
   overflow-x: hidden;
-  background: #faf6f2;
+
+  background: radial-gradient(ellipse at 20% 0%, rgba(255, 255, 255, 0.85), rgba(250, 246, 242, 1) 55%);
+  scrollbar-gutter: stable both-edges;
+  overscroll-behavior: contain;
+  isolation: isolate;
 }
 
 .profile-page {
+  --page-width: min(1680px, calc(100% - 48px));
+
   font-family: "微软雅黑", sans-serif;
   color: #3a2618;
   min-height: 100vh;
-  background: radial-gradient(ellipse at 20% 0%, rgba(255,255,255,0.85), rgba(250,246,242,1) 55%);
+  background: radial-gradient(ellipse at 20% 0%, rgba(255, 255, 255, 0.85), rgba(250, 246, 242, 1) 55%);
 }
 
 .profile-page * {
@@ -275,7 +274,7 @@ function onCancel() {
     opacity 0.2s ease;
 }
 
-/* 顶部：完全对齐收藏页 */
+/* 顶部：背景全宽 */
 .header {
   position: relative;
   height: 190px;
@@ -286,7 +285,6 @@ function onCancel() {
   background-size: cover;
   background-color: #f0e6d6;
   border-bottom: 1px solid rgba(224, 208, 184, 0.85);
-  padding-top: 20px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
 }
 .header::after {
@@ -295,9 +293,19 @@ function onCancel() {
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(ellipse at 18% 18%, rgba(255,255,255,0.55), rgba(255,255,255,0.18) 55%, rgba(0,0,0,0.08) 100%),
-    linear-gradient(180deg, rgba(250,246,242,0.25) 0%, rgba(250,246,242,0.58) 55%, rgba(250,246,242,0.78) 100%);
+    radial-gradient(ellipse at 18% 18%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.18) 55%, rgba(0, 0, 0, 0.08) 100%),
+    linear-gradient(180deg, rgba(250, 246, 242, 0.25) 0%, rgba(250, 246, 242, 0.58) 55%, rgba(250, 246, 242, 0.78) 100%);
 }
+
+/* header 内容居中容器 */
+.header-inner {
+  position: relative;
+  height: 100%;
+  width: var(--page-width);
+  margin: 0 auto;
+  padding-top: 20px;
+}
+
 .header h1 {
   position: absolute;
   top: 18px;
@@ -310,29 +318,7 @@ function onCancel() {
   text-shadow: 0 1px 2px rgba(255, 255, 255, 0.65);
 }
 
-/* ✅ 返回首页：放在标题下方，样式融入头部 */
-.back-home-btn {
-  position: absolute;
-  top: 64px;
-  left: 30px;
-  border: 1px solid rgba(224, 208, 184, 0.9);
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(8px);
-  color: #5d4037;
-  padding: 8px 12px;
-  border-radius: 999px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 650;
-  box-shadow: 0 8px 18px rgba(0,0,0,0.06);
-}
-.back-home-btn:hover {
-  border-color: rgba(194, 158, 109, 0.95);
-  background: rgba(255, 255, 255, 0.84);
-  transform: translateY(-1px);
-}
-
-/* 头像：与收藏页一致 */
+/* 头像 */
 .avatar-area {
   position: absolute;
   top: 52px;
@@ -395,7 +381,7 @@ function onCancel() {
 }
 .file-input { display: none; }
 
-/* 邮箱输入：与收藏页一致 */
+/* 邮箱输入 */
 .username-input {
   position: absolute;
   top: 22px;
@@ -415,23 +401,28 @@ function onCancel() {
   box-shadow: 0 0 0 3px rgba(194, 158, 109, 0.16), 0 8px 18px rgba(0,0,0,0.08);
 }
 
-/* 导航 sticky：与收藏页统一 */
+/* 导航 sticky：背景全宽 */
 .nav {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-
   width: 100%;
   background: rgba(230, 200, 155, 0.92);
-  padding: 10px 12px;
   margin-bottom: 22px;
-
   position: sticky;
   top: 0;
   z-index: 20;
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(224, 208, 184, 0.9);
   box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+  padding: 0;
+}
+
+/* nav 内容居中容器 */
+.nav-inner {
+  width: var(--page-width);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
 }
 
 .nav-home {
@@ -440,7 +431,6 @@ function onCancel() {
   background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(8px);
   color: #5d4037;
-
   padding: 9px 12px;
   border-radius: 999px;
   cursor: pointer;
@@ -448,7 +438,6 @@ function onCancel() {
   font-weight: 750;
   box-shadow: 0 8px 16px rgba(0,0,0,0.06);
 }
-
 .nav-home:hover {
   border-color: rgba(194, 158, 109, 0.95);
   background: rgba(255, 255, 255, 0.84);
@@ -464,39 +453,30 @@ function onCancel() {
 .nav-item {
   flex: 1;
   text-align: center;
-  font-size: 17px; /* ✅ 主菜单更大 */
-  font-weight: 850; /* ✅ 主菜单更粗 */
+  font-size: 17px;
+  font-weight: 850;
   color: #5d4037;
   text-decoration: none;
-
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-
   border-bottom: 2px solid transparent;
   padding: 10px 6px;
 }
-
 .nav-item.active {
   color: #8b4513;
-  font-weight: 900; /* ✅ 激活态更突出 */
+  font-weight: 900;
   border-bottom: 2px solid rgba(139, 69, 19, 0.9);
 }
-
 .nav-item:hover:not(.active) {
   color: #8b4513;
   transform: translateY(-1px);
 }
 
-@media (max-width: 480px) {
-  .nav { gap: 8px; padding: 10px 10px; }
-  .nav-home { padding: 8px 10px; font-size: 12px; }
-  .nav-item { font-size: 12px; gap: 2px; padding: 10px 4px; }
-}
-
+/* 主体壳：居中 */
 .page-shell {
-  width: min(1680px, 96vw);
+  width: var(--page-width);
   margin: 0 auto 60px;
   background: rgba(255, 255, 255, 0.62);
   border: 1px solid rgba(240, 230, 214, 0.95);
@@ -509,10 +489,9 @@ function onCancel() {
   justify-content: center;
 }
 
-
-/* ✅ 表单部分：保留你原来的“居中且不太宽” */
+/* 表单部分 */
 .profile-container {
-  width: min(960px, 92vw);
+  width: min(960px, calc(100% - 36px));
   margin: 0 auto;
 }
 .profile-card {
@@ -605,19 +584,22 @@ function onCancel() {
 }
 .cancel-btn:hover { background: rgba(230, 200, 155, 0.92); transform: translateY(-2px); }
 
-/* 响应式：与收藏页口径对齐 */
+/* 响应式 */
 @media (max-width: 720px) {
   .username-input { right: 16px; width: 200px; }
-  .back-home-btn { left: 16px; }
   .header h1 { left: 16px; }
 }
+
 @media (max-width: 480px) {
   .header { height: 210px; }
   .username-input { top: 150px; right: 20px; width: calc(100% - 40px); }
-  .nav-item { font-size: 12px; gap: 2px; }
+
+  .nav-inner { gap: 8px; padding: 10px 10px; }
+  .nav-home { padding: 8px 10px; font-size: 12px; }
+  .nav-item { font-size: 12px; gap: 2px; padding: 10px 4px; }
+
   .profile-group { flex-direction: column; align-items: flex-start; }
   .profile-label { margin-bottom: 10px; }
   .profile-card { padding: 20px; }
-  .back-home-btn { top: 66px; }
 }
 </style>

@@ -389,7 +389,7 @@ function onSaveLogin() {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M16 17v-2H7v-2h9v-2l3 3-3 3ZM14 3a2 2 0 0 1 2 2v4h-2V5H6v14h8v-4h2v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8Z'/%3E%3C/svg%3E");
 }
 
-/* ✅ outline 按钮里的登出图标改为红色（不然白色会“发虚”） */
+/* ✅ outline 按钮里的登出图标为红色 */
 .btn-danger-outline .btn-ico.i-logout {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d32f2f'%3E%3Cpath d='M16 17v-2H7v-2h9v-2l3 3-3 3ZM14 3a2 2 0 0 1 2 2v4h-2V5H6v14h8v-4h2v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8Z'/%3E%3C/svg%3E");
 }
@@ -639,11 +639,9 @@ function onSaveLogin() {
     min-width: 0;
   }
 }
-/* =========================
-   1) 标题更像“标题栏”
-   ========================= */
+
 .section-title {
-  font-size: 17px;     /* 原来 15px -> 更明显 */
+  font-size: 17px;     
   font-weight: 900;
   letter-spacing: 0.4px;
   padding-left: 8px;
@@ -653,47 +651,40 @@ function onSaveLogin() {
 .lock-icon,
 .shield-icon,
 .logout-icon {
-  width: 20px;         /* 原来 18px -> 略大 */
+  width: 20px;       
   height: 20px;
 }
 
-/* 底部bar标题与按钮间距更舒服一点 */
+
 .bottom-bar {
-  padding-top: 16px;   /* 原来 18px */
-  gap: 10px;           /* 原来 12px */
+  padding-top: 16px;  
+  gap: 10px;        
 }
 
-/* =========================
-   2) 两个主按钮稍微小一点
-   （保存更改 & 登出所有设备）
-   ========================= */
-/* 统一宽度也收一点 */
 .login-settings {
-  --action-w: 280px;   /* 原来 320px -> 收紧 */
+  --action-w: 280px;  
 }
 
-/* 主按钮尺寸：更“精致” */
 .btn-lg {
-  height: 48px;        /* 原来 54px */
-  padding: 0 26px;     /* 原来 0 34px */
-  font-size: 14px;     /* 原来 15px */
+  height: 48px;        
+  padding: 0 26px;    
+  font-size: 14px;    
 }
 
-/* 两个主按钮同宽同长，跟随变量 */
+
 .btn-action {
   width: var(--action-w);
   min-width: var(--action-w);
 }
 
-/* 图标跟随按钮稍微小一点 */
+
 .btn-ico {
-  width: 16px;         /* 原来 18px */
+  width: 16px;        
   height: 16px;
 }
 
-/* 登出区域卡片也略紧凑点（避免按钮变小后卡片显空） */
 .logout-section {
-  padding: 16px 18px;  /* 原来 18px 20px */
+  padding: 16px 18px; 
 }
 
 /* 小屏依然全宽 */
@@ -703,5 +694,165 @@ function onSaveLogin() {
     min-width: 0;
   }
 }
+
+/* =========================
+   ✅ 美化补丁：去“框挤框”，字不贴边
+   直接放到 <style scoped> 最底部覆盖
+   ========================= */
+
+/* 整体更柔和一点 */
+.login-settings {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* 让“边框感”整体变弱 */
+  --line: rgba(0, 0, 0, 0.05);
+  --border: rgba(0, 0, 0, 0.05);
+
+  /* 卡片背景更像色块 */
+  --card-bg: rgba(255, 255, 255, 0.88);
+}
+
+/* 卡片：去掉硬边框，用阴影和色块分层 */
+.device-card,
+.security-item {
+  border: 0 !important;
+  background: var(--card-bg) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* 卡片留白更舒服一点（避免“挤”） */
+.device-card {
+  padding: 22px 24px !important;
+}
+.security-item {
+  padding: 18px 22px !important;
+}
+
+/* 列表间距也拉开一点 */
+.login-devices { gap: 16px !important; }
+.security-options { gap: 16px !important; }
+.device-detail { gap: 10px !important; }
+
+/* ✅ Chip：不要边框！改成色块 + 固定高度 + 垂直居中（解决“字贴线”） */
+.chip {
+  border: 0 !important;
+  background: rgba(139, 69, 19, 0.08) !important;
+  color: rgba(45, 28, 18, 0.78) !important;
+
+  height: 32px !important;
+  padding: 0 12px !important;
+  border-radius: 999px !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+/* ✅ 当前设备 Badge：同理，去边框 + 固定高度 + 垂直居中 */
+.badge {
+  border: 0 !important;
+  background: rgba(139, 69, 19, 0.10) !important;
+  color: rgba(109, 56, 17, 0.96) !important;
+
+  height: 34px !important;
+  padding: 0 14px !important;
+  border-radius: 999px !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  text-decoration: none !important;
+}
+
+/* 底部分割线也弱化一点（别抢戏） */
+.bottom-bar {
+  border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+/* 登出区域：也别用硬边框，改成淡色块 */
+.logout-section {
+  border: 0 !important;
+  background: rgba(244, 67, 54, 0.06) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 20px !important;
+  padding: 16px 18px !important;
+}
+
+.device-type { line-height: 1.32 !important; }
+.device-location,
+.device-time { line-height: 1.35 !important; }
+
+.col-left .logout-section{
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+
+  padding: 0 !important;
+  border-radius: 0 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;  /* ✅ 按钮靠右 */
+  gap: 14px !important;
+}
+.col-left .logout-desc{
+  margin-right: auto !important;          /* ✅ 文案靠左 */
+  color: rgba(0,0,0,0.55) !important;
+  font-weight: 750 !important;
+}
+
+.bottom-actions{
+  justify-content: flex-end !important;
+}
+
+.btn-primary,
+.btn-danger{
+  box-shadow: 0 10px 18px rgba(0,0,0,0.06) !important; /* ✅ 更轻 */
+  transform: none !important;
+}
+
+.btn-primary{
+  background: rgba(139, 69, 19, 0.10) !important;
+  color: rgba(109, 56, 17, 0.95) !important;
+  border: 1px solid rgba(139, 69, 19, 0.20) !important;
+}
+.btn-primary:hover{
+  background: rgba(139, 69, 19, 0.16) !important;
+}
+
+
+.btn-danger{
+  background: rgba(244, 67, 54, 0.10) !important;
+  color: rgba(211, 47, 47, 0.95) !important;
+  border: 1px solid rgba(244, 67, 54, 0.20) !important;
+}
+.btn-danger:hover{
+  background: rgba(244, 67, 54, 0.16) !important;
+}
+
+.btn-primary .btn-ico.i-save{
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236d3811'%3E%3Cpath d='M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4Zm0 2.5L19.5 8H17V5.5ZM7 5h8v4H7V5Zm12 14H5V5h.5v6H17V5.5h.5V19Z'/%3E%3C/svg%3E") !important;
+}
+.btn-danger .btn-ico.i-logout{
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d32f2f'%3E%3Cpath d='M16 17v-2H7v-2h9v-2l3 3-3 3ZM14 3a2 2 0 0 1 2 2v4h-2V5H6v14h8v-4h2v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8Z'/%3E%3C/svg%3E") !important;
+}
+
+.btn-lg{
+  height: 48px !important;
+  padding: 0 26px !important;
+  font-size: 14px !important;
+}
+.btn{
+  border-radius: 16px !important; /* ✅ 仍然圆润，但没那么夸张 */
+}
+
 
 </style>

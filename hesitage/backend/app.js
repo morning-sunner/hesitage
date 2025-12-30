@@ -1,5 +1,7 @@
 // 加载环境变量配置
 require('dotenv').config();
+var supportRouter = require('./routes/support');
+
 
 var createError = require('http-errors');
 var express = require('express');
@@ -81,6 +83,7 @@ app.use('/api/statistics', statisticsRouter);
 app.use('/api', pdfRouter);
 app.use('/api', apiRouter);
 
+app.use('/api/support', supportRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
